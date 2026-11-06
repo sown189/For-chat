@@ -108,3 +108,5 @@ button:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-vis
 .finesse-api-body .finesse-key-error{color:#ff9e94}
 .finesse-api-body .finesse-key-ok{color:#c5ff2b}
 .finesse-api-body .finesse-disconnect{background:transparent;color:#b7c5b0;border:1px solid #506447;border-radius:8px;padding:10px;margin-top:12px;cursor:pointer;font:11px 'DM Mono',monospace}
+
+.finesse-provider-options{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.finesse-provider-options button{background:#131c13;color:#c6d5bd;border:1px solid #4b6041;border-radius:9px;padding:11px 13px;font:700 10px 'DM Mono',monospace;cursor:pointer}.finesse-provider-options button.active{background:#c5ff2b;color:#101510;border-color:#c5ff2b}.finesse-api-body code{color:#c5ff2b;overflow-wrap:anywhere}
