@@ -183,3 +183,9 @@ button:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-vis
 .computer-use-result,.computer-use-history{padding:18px;border:1px solid #3b4e35;border-radius:12px;line-height:1.7}
 .computer-use-error{color:#ffb6a8}
 @media(max-width:650px){.computer-use-heading{flex-direction:column}.computer-use-actions button{width:100%}.computer-use-placeholder{min-height:220px}}
+
+.computer-use-key{border:1px solid #50663d;background:#192218;border-radius:16px;padding:18px}
+.computer-use-key summary{display:flex;align-items:center;gap:10px;color:#c5ff2b;cursor:pointer;font:700 12px 'DM Mono',monospace;letter-spacing:1px}
+.computer-use-key p{color:#bac8b3;line-height:1.6;font-size:13px}
+.computer-use-key form{display:flex;flex-wrap:wrap;gap:10px}
+.computer-use-key input{flex:1;min-width:220px;border:1px solid #55684d;background:#0a110b;border-radius:10px;padding:14px;color:white;font-size:15px}
