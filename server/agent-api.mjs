@@ -19,12 +19,12 @@ http.createServer(async(req,res)=>{
  }
  if(req.url==='/api/agent/plan'&&req.method==='POST'){
   try{
-   const {task}=await readBody(req);
+   const {task,history=[]}=await readBody(req);
    if(typeof task!=='string'||!task.trim()||task.length>3000)return respond(res,400,{error:'Enter a task under 3000 characters.'});
    if(!process.env.OPENROUTER_API_KEY)return respond(res,503,{error:'AI is not configured. Set OPENROUTER_API_KEY in Terminal before launching Finessers.'});
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),30000);
    try{
-    const result=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',signal:controller.signal,headers:{'Authorization':'Bearer '+process.env.OPENROUTER_API_KEY,'Content-Type':'application/json','HTTP-Referer':'http://localhost:5173','X-Title':'Finessers Local'},body:JSON.stringify({model:process.env.OPENROUTER_MODEL||'openai/gpt-4o-mini',messages:[{role:'system',content:'You are Finessers, a concise student productivity assistant. Given a task, propose a practical plan in 3-6 steps. Do not claim to have browsed, clicked, logged in, or completed actions. State clearly what requires user approval. Never request passwords.'},{role:'user',content:task}],max_tokens:650})});
+    const result=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',signal:controller.signal,headers:{'Authorization':'Bearer '+process.env.OPENROUTER_API_KEY,'Content-Type':'application/json','HTTP-Referer':'http://localhost:5173','X-Title':'Finessers Local'},body:JSON.stringify({model:process.env.OPENROUTER_MODEL||'openai/gpt-4o-mini',messages:[{role:'system',content:'You are Finessers, a concise and helpful AI assistant for students. Converse naturally, answer questions and plan tasks when asked. You cannot perform browser actions in this chat endpoint. Do not claim to have browsed, clicked, logged in, or completed actions. Never request passwords.'},...((Array.isArray(history)?history:[]).slice(-12).filter(m=>['user','assistant'].includes(m?.role)&&typeof m.content==='string').map(m=>({role:m.role,content:m.content.slice(0,3000)}))),{role:'user',content:task}],max_tokens:650})});
     const data=await result.json();if(!result.ok)return respond(res,502,{error:data?.error?.message||'AI provider rejected request'});
     return respond(res,200,{plan:data.choices?.[0]?.message?.content||'No response returned.'});
    }finally{clearTimeout(timeout)}
