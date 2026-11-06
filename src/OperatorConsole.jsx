@@ -9,13 +9,14 @@ export default function OperatorConsole(){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
  const [log,setLog]=useState([]);
+ const [preview,setPreview]=useState('');
  async function call(path,payload){
   setBusy(true);setError('');
   try{
    const response=await fetch('/api/operator/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
    const result=await response.json();
    if(!response.ok)throw Error(result.error||'Operator request failed');
-   if(path==='close')setSession(null);else setSession(result);
+   if(path==='close'){setSession(null);setPreview('')}else if(path==='screenshot')setPreview(result.image);else {setSession(old=>({...old,...result,id:result.id||old?.id}));setPreview('')}
    setLog(old=>[...old,(path==='start'?'Opened ':path==='act'?'Action completed on ':'Session closed: ')+(result.title||result.url||'browser')].slice(-12));
   }catch(e){setError(e.message)}
   finally{setBusy(false)}
