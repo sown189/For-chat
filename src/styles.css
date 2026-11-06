@@ -189,3 +189,11 @@ button:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-vis
 .computer-use-key p{color:#bac8b3;line-height:1.6;font-size:13px}
 .computer-use-key form{display:flex;flex-wrap:wrap;gap:10px}
 .computer-use-key input{flex:1;min-width:220px;border:1px solid #55684d;background:#0a110b;border-radius:10px;padding:14px;color:white;font-size:15px}
+
+.computer-use-modes{display:flex;flex-wrap:wrap;gap:12px}
+.computer-use-modes label{display:flex;align-items:center;gap:9px;border:1px solid #4a5c42;border-radius:12px;padding:12px 16px;font:700 12px 'DM Mono',monospace;cursor:pointer}
+.computer-use-modes input{accent-color:#c5ff2b}
+.computer-use-local-help{color:#b9c7b2;font-size:13px;line-height:1.6}
+.computer-use-local-help code{color:#c5ff2b}
+.computer-use-diagnostics{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.computer-use-diagnostics p{color:#b9c7b2;font-size:12px}
