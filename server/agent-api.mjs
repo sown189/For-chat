@@ -90,7 +90,7 @@ http.createServer(async(req,res)=>{
     try{choice=parseAgentJson(raw);break}catch(e){lastParseError=e}
    }
    if(!choice)throw Error('The selected AI model could not provide a valid action after two attempts. Try Groq Cloud or a different provider. '+(lastParseError?.message||''));
-   current.count++;
+   current.count++;current.failures=0;
    if(choice.action==='scroll'){await page.mouse.wheel(0,choice.value==='up'?-600:600);current.steps.push({label:'Scrolled '+(choice.value==='up'?'up':'down'),kind:'scroll'});}
    else if(choice.action==='button'){const selected=view.buttons.find(b=>b.index===choice.index);if(!selected||!/menu|more|expand|show|next|previous|back|tab|details|open|close/i.test(selected.text)||/submit|send|buy|purchase|delete|remove|pay|login|sign in|checkout/i.test(selected.text))throw Error('This button requires manual interaction.');const el=page.locator('button[type=button],button:not([type])').nth(selected.index);if(await el.isVisible()){await el.click({timeout:3000});current.steps.push({label:'Opened control: '+selected.text,kind:'click'});}else throw Error('Button is not visible.');}
    else if(choice.action==='done'){current.state='completed';current.summary=String(choice.summary||'Research finished.').slice(0,1500)+'\nSource: '+view.url;current.steps.push({label:'Research complete',kind:'done'});}
@@ -104,7 +104,7 @@ http.createServer(async(req,res)=>{
    else if(choice.action==='fill'){if(!Number.isInteger(choice.index)||choice.index<0||choice.index>=fields.length||typeof choice.value!=='string'||choice.value.length>300)throw Error('Invalid text field suggestion.');current.pending={action:'fill',index:choice.index,value:choice.value,pageUrl:view.url,label:fields[choice.index].label||fields[choice.index].placeholder||'Text field'};current.state='awaiting-approval';current.steps.push({label:'Waiting for permission to fill '+current.pending.label,kind:'approval'});}
    else throw Error('AI returned an unsupported action.');
    return respond(res,200,agentView());
-  }catch(e){if(current.state==='running'){current.state='stopped';current.summary='Agent paused: '+e.message}return respond(res,200,agentView())}finally{current.stepping=false}
+  }catch(e){if(current.state==='running'){const msg=String(e.message||'Unknown browser error');current.failures=(current.failures||0)+1;current.steps.push({label:'Browser issue: '+msg.slice(0,120),kind:'warning'});if(current.failures<=2&&/timeout|not visible|unavailable link|detached|navigation|closed|not found/i.test(msg)){current.steps.push({label:'Retrying with updated page information',kind:'retry'});}else{current.state='stopped';current.summary='Agent paused after a browser issue: '+msg.slice(0,500)}}return respond(res,200,agentView())}finally{current.stepping=false}
  }
 
  if(req.url==='/api/agent/open'&&req.method==='POST'){
