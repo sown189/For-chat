@@ -66,7 +66,7 @@ http.createServer(async(req,res)=>{
  }
  if(req.url==='/api/agent/mission'&&req.method==='GET')return respond(res,200,agentView());
  if(req.url==='/api/agent/mission/start'&&req.method==='POST'){
-  try{const {task,url}=await readBody(req);if(typeof task!=='string'||!task.trim()||task.length>600)return respond(res,400,{error:'Enter a task under 600 characters.'});if(mission&&['running','awaiting-approval'].includes(mission.state))return respond(res,409,{error:'Stop the current mission first.'});if(!config().modelConfigured)return respond(res,503,{error:'Connect an AI provider first.'});const target=safeUrl(url||'https://www.fau.edu/');browser??=await chromium.launch({headless:false});page??=await browser.newPage();await page.goto(target,{waitUntil:'domcontentloaded',timeout:20000});mission={state:'running',task:task.trim(),steps:[{label:'Opened '+page.url(),kind:'navigate'}],pending:null,summary:'',count:0};return respond(res,200,agentView())}catch(e){return respond(res,400,{error:e.message})}
+  try{const {task,url}=await readBody(req);if(typeof task!=='string'||!task.trim()||task.length>600)return respond(res,400,{error:'Enter a task under 600 characters.'});if(mission&&['running','awaiting-approval'].includes(mission.state))return respond(res,409,{error:'Stop the current mission first.'});if(!config().modelConfigured)return respond(res,503,{error:'Connect an AI provider first.'});const target=safeUrl(url||'https://www.fau.edu/');browser??=await chromium.launch({headless:true});if(page&&!page.isClosed())await page.close();page=await browser.newPage({viewport:{width:1280,height:800}});await page.goto(target,{waitUntil:'domcontentloaded',timeout:20000});mission={state:'running',task:task.trim(),steps:[{label:'Opened '+page.url(),kind:'navigate'}],pending:null,summary:'',count:0};return respond(res,200,agentView())}catch(e){return respond(res,400,{error:e.message})}
  }
  if(req.url==='/api/agent/mission/stop'&&req.method==='POST'){if(mission){mission.state='stopped';mission.pending=null;mission.summary='Stopped by user.'}return respond(res,200,agentView())}
  if(req.url==='/api/agent/mission/approve'&&req.method==='POST'){
@@ -92,7 +92,7 @@ http.createServer(async(req,res)=>{
    else if(choice.action==='done'){current.state='completed';current.summary=String(choice.summary||'Research finished.').slice(0,1600);current.steps.push({label:'Research complete',kind:'done'});}
    else if(choice.action==='navigate'||choice.action==='click'){const link=view.links.find(l=>l.index===choice.index);if(!link)throw Error('AI chose an unavailable link.');const target=safeUrl(link.href);if(choice.action==='click'){
      const el=page.locator('a[href]').nth(link.index);
-     const visible=await el.isVisible().catch(()=>false);
+     const visible=await el.isVisible().catch(()=>false)&&await el.getAttribute('href').then(h=>new URL(h,view.url).href===target).catch(()=>false);
      if(visible){try{await el.evaluate(a=>{a.style.outline='4px solid #c5ff2b';a.style.outlineOffset='4px'});await el.click({timeout:1800});await page.waitForLoadState('domcontentloaded',{timeout:5000}).catch(()=>{});}catch{await page.goto(target,{waitUntil:'domcontentloaded',timeout:15000})}}
      else await page.goto(target,{waitUntil:'domcontentloaded',timeout:15000});
     }else await page.goto(target,{waitUntil:'domcontentloaded',timeout:15000});
