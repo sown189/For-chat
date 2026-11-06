@@ -2,6 +2,8 @@ import * as operator from './operator.js';
 import http from 'node:http';
 import { URL } from 'node:url';
 const port=Number(process.env.API_PORT||8787);
+let openaiKey='';
+let provider='openai';
 const canvasOrigin=process.env.CANVAS_BASE_URL;
 const token=process.env.CANVAS_ACCESS_TOKEN;
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'http://localhost:5173'});res.end(JSON.stringify(data))};
@@ -25,6 +27,7 @@ http.createServer(async(req,res)=>{
    if(req.url==='/api/operator/start' && req.method==='POST') result=await operator.createSession(body.url);
    else if(req.url==='/api/operator/observe' && req.method==='POST') result=await operator.observe(body.id);
    else if(req.url==='/api/operator/act' && req.method==='POST') result=await operator.act(body.id,body.action);
+   else if(req.url==='/api/operator/screenshot' && req.method==='POST') result=await operator.screenshot(body.id);
    else if(req.url==='/api/operator/close' && req.method==='POST') result={closed:await operator.close(body.id)};
    else return json(res,404,{error:'Unknown operator endpoint'});
    return json(res,200,result);
