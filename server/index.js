@@ -22,7 +22,7 @@ http.createServer(async(req,res)=>{
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>12000)throw Error('Request too large')}
    const body=JSON.parse(raw||'{}');
    let result;
-   if(req.url==='/api/computer/start'&&req.method==='POST')result=await computer.start(body.task,openaiKey);
+   if(req.url==='/api/computer/start'&&req.method==='POST')result=await computer.start(body.task,openaiKey,body.mode==='local'?'local':'openai');
    else if(req.url==='/api/computer/step'&&req.method==='POST')result=await computer.step(body.id,body.approve===true);
    else if(req.url==='/api/computer/status'&&req.method==='POST')result=await computer.status(body.id);
    else if(req.url==='/api/computer/stop'&&req.method==='POST')result=await computer.stop(body.id);
