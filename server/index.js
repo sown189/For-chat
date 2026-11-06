@@ -1,3 +1,4 @@
+import * as operator from './operator.js';
 import http from 'node:http';
 import { URL } from 'node:url';
 const port=Number(process.env.API_PORT||8787);
@@ -10,7 +11,26 @@ async function canvas(path){
  return response.json();
 }
 http.createServer(async(req,res)=>{
- if(req.method!=='GET'||!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
+ if(!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
+ if(req.url.startsWith('/api/operator/')) {
+  try {
+   const body = await new Promise((resolve,reject)=>{
+    if(req.method==='GET') return resolve({});
+    let raw='';
+    req.on('data',chunk=>{raw+=chunk;if(raw.length>10000){reject(Error('Request too large'));req.destroy();}});
+    req.on('end',()=>{try{resolve(JSON.parse(raw||'{}'));}catch{reject(Error('Invalid JSON'));}});
+    req.on('error',reject);
+   });
+   let result;
+   if(req.url==='/api/operator/start' && req.method==='POST') result=await operator.createSession(body.url);
+   else if(req.url==='/api/operator/observe' && req.method==='POST') result=await operator.observe(body.id);
+   else if(req.url==='/api/operator/act' && req.method==='POST') result=await operator.act(body.id,body.action);
+   else if(req.url==='/api/operator/close' && req.method==='POST') result={closed:await operator.close(body.id)};
+   else return json(res,404,{error:'Unknown operator endpoint'});
+   return json(res,200,result);
+  }catch(e){return json(res,400,{error:e.message});}
+ }
+ if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
  if(req.url==='/api/health')return json(res,200,{configured:!!(canvasOrigin&&token)});
  if(req.url!=='/api/deadlines')return json(res,404,{error:'Not found'});
  if(!canvasOrigin||!token)return json(res,503,{error:'Set CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN in your terminal first.'});
