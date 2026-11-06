@@ -48,7 +48,7 @@ http.createServer(async(req,res)=>{
 
  if(req.url==='/api/agent/mission/frame'&&req.method==='GET'){
   if(!page||page.isClosed()){res.writeHead(404);return res.end()}
-  try{const png=await page.screenshot({type:'jpeg',quality:65,timeout:6000});res.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});return res.end(png)}catch(e){return respond(res,500,{error:e.message})}
+  try{const png=await page.screenshot({type:'jpeg',quality:55,timeout:4000,animations:'disabled'});res.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});return res.end(png)}catch(e){return respond(res,500,{error:e.message})}
  }
  if(req.url==='/api/agent/mission'&&req.method==='GET')return respond(res,200,agentView());
  if(req.url==='/api/agent/mission/start'&&req.method==='POST'){
@@ -70,9 +70,11 @@ http.createServer(async(req,res)=>{
    const choice=parseAgentJson(raw);current.count++;
    if(choice.action==='done'){current.state='completed';current.summary=String(choice.summary||'Research finished.').slice(0,1600);current.steps.push({label:'Research complete',kind:'done'});}
    else if(choice.action==='navigate'||choice.action==='click'){const link=view.links.find(l=>l.index===choice.index);if(!link)throw Error('AI chose an unavailable link.');const target=safeUrl(link.href);if(choice.action==='click'){
-     const el=page.locator('a[href]').filter({hasText:link.text}).first();await el.scrollIntoViewIfNeeded({timeout:5000});await el.evaluate(a=>{a.style.outline='4px solid #c5ff2b';a.style.outlineOffset='4px';});await page.waitForTimeout(550);
-     await el.click({timeout:7000});await page.waitForLoadState('domcontentloaded',{timeout:9000}).catch(()=>{});
-    }else await page.goto(target,{waitUntil:'domcontentloaded',timeout:18000});
+     const el=page.locator('a[href]').filter({hasText:link.text}).first();
+     const visible=await el.isVisible().catch(()=>false);
+     if(visible){try{await el.evaluate(a=>{a.style.outline='4px solid #c5ff2b';a.style.outlineOffset='4px'});await el.click({timeout:1800});await page.waitForLoadState('domcontentloaded',{timeout:5000}).catch(()=>{});}catch{await page.goto(target,{waitUntil:'domcontentloaded',timeout:15000})}}
+     else await page.goto(target,{waitUntil:'domcontentloaded',timeout:15000});
+    }else await page.goto(target,{waitUntil:'domcontentloaded',timeout:15000});
     if(current.state==='running')current.steps.push({label:(choice.action==='click'?'Clicked ':'Visited ')+(link.text||target).slice(0,90),kind:choice.action,url:page.url()});}
    else if(choice.action==='fill'){if(!Number.isInteger(choice.index)||choice.index<0||choice.index>=fields.length||typeof choice.value!=='string'||choice.value.length>300)throw Error('Invalid text field suggestion.');current.pending={action:'fill',index:choice.index,value:choice.value,pageUrl:view.url,label:fields[choice.index].label||fields[choice.index].placeholder||'Text field'};current.state='awaiting-approval';current.steps.push({label:'Waiting for permission to fill '+current.pending.label,kind:'approval'});}
    else throw Error('AI returned an unsupported action.');
