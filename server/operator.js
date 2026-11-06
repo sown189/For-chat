@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { randomUUID } from 'node:crypto';
 
 const sessions = new Map();
 const MAX_SESSIONS = 3;
@@ -35,7 +36,7 @@ async function createSession(url) {
     const page = await context.newPage();
     page.setDefaultTimeout(TIMEOUT_MS);
     await page.goto(checkUrl(url), {waitUntil: 'domcontentloaded', timeout: TIMEOUT_MS});
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     sessions.set(id, {browser, page, created: Date.now()});
     return {id, ...await observe(id)};
   } catch (e) {
@@ -47,6 +48,7 @@ async function observe(id) {
   const s = sessions.get(id);
   if (!s) throw Error('Unknown browser session');
   return {
+    id,
     url: s.page.url(),
     title: await s.page.title(),
     text: await publicSnapshot(s.page),
@@ -90,6 +92,11 @@ async function act(id, action) {
   }
   return observe(id);
 }
+async function screenshot(id) {
+ const s=sessions.get(id);
+ if(!s) throw Error('Unknown browser session');
+ return {id,image:'data:image/jpeg;base64,'+(await s.page.screenshot({type:'jpeg',quality:65})).toString('base64')};
+}
 async function close(id) {
   const s = sessions.get(id);
   if (!s) return false;
@@ -97,4 +104,4 @@ async function close(id) {
   await s.browser.close();
   return true;
 }
-export {createSession, observe, act, close};
+export {createSession, observe, act, close, screenshot};
