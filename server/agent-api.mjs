@@ -10,6 +10,10 @@ http.createServer(async(req,res)=>{
  if(req.url==='/api/agent/open'&&req.method==='POST'){
   try{const {url}=await readBody(req);const parsed=new URL(url);if(!['http:','https:'].includes(parsed.protocol))return respond(res,400,{error:'Only web addresses are supported.'});browser??=await chromium.launch({headless:false});page??=await browser.newPage();await page.goto(parsed.href,{waitUntil:'domcontentloaded',timeout:20000});return respond(res,200,await snapshot());}catch(e){return respond(res,500,{error:e.message})}
  }
+ if(req.url==='/api/agent/navigate'&&req.method==='POST'){
+  if(!page)return respond(res,409,{error:'Open a browser session first.'});
+  try{const {url}=await readBody(req);const target=new URL(url,page.url());if(!['http:','https:'].includes(target.protocol))return respond(res,400,{error:'Unsupported address'});await page.goto(target.href,{waitUntil:'domcontentloaded',timeout:20000});return respond(res,200,await snapshot())}catch(e){return respond(res,500,{error:e.message})}
+ }
  if(req.url==='/api/agent/snapshot'&&req.method==='GET'){
   if(!page)return respond(res,409,{error:'Open a browser session first.'});try{return respond(res,200,await snapshot())}catch(e){return respond(res,500,{error:e.message})}
  }
