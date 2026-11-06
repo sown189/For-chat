@@ -22,6 +22,9 @@ const snapshot=async()=>({url:page.url(),title:await page.title(),text:(await pa
 const respond=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
 const readBody=async req=>{let body='';for await(const part of req){body+=part;if(body.length>20000)throw Error('Request too large');}return JSON.parse(body)};
 http.createServer(async(req,res)=>{
+ const origin=req.headers.origin;
+ if(origin){try{const u=new URL(origin);if(!['localhost','127.0.0.1'].includes(u.hostname)||!['http:','https:'].includes(u.protocol))return respond(res,403,{error:'Finessers local API rejects requests from other websites.'});}catch{return respond(res,403,{error:'Invalid request origin.'})}}
+ if(req.headers['sec-fetch-site']==='cross-site')return respond(res,403,{error:'Cross-site requests are blocked.'});
  if(req.url==='/api/agent/health')return respond(res,200,{ready:true,...config()});
  if(req.url==='/api/agent/provider'&&req.method==='POST'){
   try{const data=await readBody(req);if(!['openrouter','groq','ollama'].includes(data.provider))return respond(res,400,{error:'Unknown AI provider.'});provider=data.provider;return respond(res,200,{...config()})}catch(e){return respond(res,400,{error:e.message})}
