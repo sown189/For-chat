@@ -70,8 +70,8 @@ http.createServer(async(req,res)=>{
    const choice=parseAgentJson(raw);current.count++;
    if(choice.action==='done'){current.state='completed';current.summary=String(choice.summary||'Research finished.').slice(0,1600);current.steps.push({label:'Research complete',kind:'done'});}
    else if(choice.action==='navigate'||choice.action==='click'){const link=view.links.find(l=>l.index===choice.index);if(!link)throw Error('AI chose an unavailable link.');const target=safeUrl(link.href);if(choice.action==='click'){
-     const el=page.locator('a[href]').nth(link.index);await el.scrollIntoViewIfNeeded({timeout:5000});await el.evaluate(a=>{a.style.outline='4px solid #c5ff2b';a.style.outlineOffset='4px';});await page.waitForTimeout(550);
-     await Promise.allSettled([page.waitForLoadState('domcontentloaded',{timeout:9000}),el.click({timeout:7000})]);
+     const el=page.locator('a[href]').filter({hasText:link.text}).first();await el.scrollIntoViewIfNeeded({timeout:5000});await el.evaluate(a=>{a.style.outline='4px solid #c5ff2b';a.style.outlineOffset='4px';});await page.waitForTimeout(550);
+     await el.click({timeout:7000});await page.waitForLoadState('domcontentloaded',{timeout:9000}).catch(()=>{});
     }else await page.goto(target,{waitUntil:'domcontentloaded',timeout:18000});
     if(current.state==='running')current.steps.push({label:(choice.action==='click'?'Clicked ':'Visited ')+(link.text||target).slice(0,90),kind:choice.action,url:page.url()});}
    else if(choice.action==='fill'){if(!Number.isInteger(choice.index)||choice.index<0||choice.index>=fields.length||typeof choice.value!=='string'||choice.value.length>300)throw Error('Invalid text field suggestion.');current.pending={action:'fill',index:choice.index,value:choice.value,pageUrl:view.url,label:fields[choice.index].label||fields[choice.index].placeholder||'Text field'};current.state='awaiting-approval';current.steps.push({label:'Waiting for permission to fill '+current.pending.label,kind:'approval'});}
