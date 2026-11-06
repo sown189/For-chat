@@ -1,8 +1,14 @@
 import http from 'node:http';
+import { chromium } from 'playwright';
+let browser;
+let page;
 const respond=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
 const readBody=async req=>{let body='';for await(const part of req){body+=part;if(body.length>20000)throw Error('Request too large');}return JSON.parse(body)};
 http.createServer(async(req,res)=>{
  if(req.url==='/api/agent/health')return respond(res,200,{ready:true,modelConfigured:!!process.env.OPENROUTER_API_KEY});
+ if(req.url==='/api/agent/open'&&req.method==='POST'){
+  try{const {url}=await readBody(req);const parsed=new URL(url);if(!['http:','https:'].includes(parsed.protocol))return respond(res,400,{error:'Only web addresses are supported.'});browser??=await chromium.launch({headless:false});page??=await browser.newPage();await page.goto(parsed.href,{waitUntil:'domcontentloaded',timeout:20000});return respond(res,200,{url:page.url(),title:await page.title()});}catch(e){return respond(res,500,{error:e.message})}
+ }
  if(req.url==='/api/agent/plan'&&req.method==='POST'){
   try{
    const {task}=await readBody(req);
