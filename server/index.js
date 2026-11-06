@@ -33,6 +33,33 @@ http.createServer(async(req,res)=>{
    return json(res,200,result);
   }catch(e){return json(res,400,{error:e.message});}
  }
+ if(req.url.startsWith('/api/agent/')) {
+  try {
+   const chunks=[];for await(const chunk of req){chunks.push(chunk);if(Buffer.concat(chunks).length>100000)throw Error('Request too large')}
+   const body=JSON.parse(Buffer.concat(chunks).toString()||'{}');
+   if(req.url==='/api/agent/health')return json(res,200,{ready:true,provider,modelConfigured:!!openaiKey});
+   if(req.url==='/api/agent/provider'&&req.method==='POST'){
+    if(body.provider!=='openai')return json(res,400,{error:'Only OpenAI is connected to this local backend'});
+    provider='openai';return json(res,200,{provider,modelConfigured:!!openaiKey});
+   }
+   if(req.url==='/api/agent/provider-key'&&req.method==='DELETE'){openaiKey='';return json(res,200,{ok:true})}
+   if(req.url==='/api/agent/provider-key'&&req.method==='POST'){
+    if(body.provider!=='openai'||typeof body.key!=='string'||!body.key.startsWith('sk-'))return json(res,400,{error:'Enter a valid OpenAI API key'});
+    const check=await fetch('https://api.openai.com/v1/models',{headers:{Authorization:'Bearer '+body.key},signal:AbortSignal.timeout(15000)});
+    if(!check.ok)return json(res,400,{error:'OpenAI rejected this key ('+check.status+'). Check your API access and billing.'});
+    openaiKey=body.key;return json(res,200,{ok:true,modelConfigured:true});
+   }
+   if(req.url==='/api/agent/plan'&&req.method==='POST'){
+    if(!openaiKey)return json(res,400,{error:'Connect your OpenAI API key in AI settings first.'});
+    const messages=[{role:'system',content:'You are Finessers, a clear and helpful student study assistant. Do not claim to control the browser.'},...(Array.isArray(body.history)?body.history.slice(-12).filter(m=>['user','assistant'].includes(m.role)&&typeof m.content==='string').map(m=>({role:m.role,content:m.content.slice(0,6000)})):[]),{role:'user',content:String(body.task||'').slice(0,6000)}];
+    const response=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+openaiKey,'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-4.1-mini',messages}),signal:AbortSignal.timeout(45000)});
+    const data=await response.json();
+    if(!response.ok)return json(res,502,{error:data.error?.message||'OpenAI request failed'});
+    return json(res,200,{plan:data.choices?.[0]?.message?.content||'No response received'});
+   }
+   return json(res,404,{error:'This AI feature is not yet connected'});
+  }catch(e){return json(res,500,{error:e.message})}
+ }
  if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
  if(req.url==='/api/health')return json(res,200,{configured:!!(canvasOrigin&&token)});
  if(req.url!=='/api/deadlines')return json(res,404,{error:'Not found'});
