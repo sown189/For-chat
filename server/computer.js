@@ -1,0 +1,72 @@
+import { chromium } from 'playwright';
+import { randomUUID } from 'node:crypto';
+
+const jobs=new Map();
+const W=1280,H=800;
+const safeUrl=url=>{const u=new URL(url);if(!['http:','https:'].includes(u.protocol))throw Error('Only web pages allowed');const h=u.hostname.toLowerCase();if(h==='localhost'||h.endsWith('.local')||h.startsWith('127.')||h.startsWith('10.')||h.startsWith('192.168.')||/^172\.(1[6-9]|2\d|3[01])\./.test(h))throw Error('Private network navigation blocked');return u.toString()};
+const snapshot=async job=>'data:image/png;base64,'+(await job.page.screenshot({type:'png'})).toString('base64');
+const view=job=>({id:job.id,state:job.state,screen:job.screen,steps:job.steps.slice(-25),pending:job.pending?{action:job.pending.action}:null,summary:job.summary,error:job.error});
+async function callOpenAI(job,input,previous_response_id){
+ const body={model:'computer-use-preview',tools:[{type:'computer_use_preview',display_width:W,display_height:H,environment:'browser'}],input,truncation:'auto'};
+ if(previous_response_id)body.previous_response_id=previous_response_id;
+ const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer '+job.key,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(90000)});
+ const d=await r.json();if(!r.ok)throw Error(d.error?.message||'OpenAI computer-use request failed');return d;
+}
+async function execute(job,a){
+ const p=job.page;switch(a.type){
+ case 'click':await p.mouse.click(a.x,a.y,{button:a.button||'left'});break;
+ case 'double_click':await p.mouse.dblclick(a.x,a.y);break;
+ case 'scroll':await p.mouse.wheel(a.scroll_x||0,a.scroll_y||0);break;
+ case 'type':await p.keyboard.type(String(a.text||'').slice(0,3000));break;
+ case 'keypress':for(const k of a.keys||[])await p.keyboard.press(k==='META'?'Meta':k==='CTRL'?'Control':k);break;
+ case 'move':await p.mouse.move(a.x,a.y);break;
+ case 'drag':if(!Array.isArray(a.path)||!a.path.length)throw Error('Invalid drag');await p.mouse.move(a.path[0].x,a.path[0].y);await p.mouse.down();for(const q of a.path.slice(1))await p.mouse.move(q.x,q.y);await p.mouse.up();break;
+ case 'screenshot':break;
+ default:throw Error('Unsupported computer action: '+a.type);
+ }
+ const url=p.url();if(url!=='about:blank')safeUrl(url);
+ await p.waitForTimeout(400);
+}
+async function advance(job,reply){
+ if(job.state==='stopped')return view(job);
+ try{
+  job.state='running';
+  const d=await callOpenAI(job,reply,job.responseId);
+  job.responseId=d.id;
+  const action=d.output?.find(x=>x.type==='computer_call');
+  if(!action){job.state='completed';job.summary=d.output_text||d.output?.filter(x=>x.type==='message').flatMap(x=>x.content||[]).map(x=>x.text||'').join('\n')||'Task finished';job.screen=await snapshot(job);return view(job)}
+  job.screen=await snapshot(job);
+  job.pending={callId:action.call_id,action:action.action,checks:action.pending_safety_checks||[]};
+  job.state='awaiting-approval';
+  return view(job);
+ }catch(e){job.state='error';job.error=e.message;return view(job)}
+}
+async function start(task,key){
+ if(typeof task!=='string'||!task.trim()||task.length>2000)throw Error('Enter a task under 2000 characters');
+ if(!key)throw Error('Connect an OpenAI API key in AI Settings first');
+ if(jobs.size>=3)throw Error('Close an existing computer session first');
+ const browser=await chromium.launch({headless:true});
+ try{
+  const context=await browser.newContext({viewport:{width:W,height:H},acceptDownloads:false});
+  await context.route('**/*',async route=>{try{safeUrl(route.request().url());await route.continue()}catch{await route.abort()}});
+  const page=await context.newPage();
+  await page.goto('https://www.google.com/',{waitUntil:'domcontentloaded',timeout:20000});
+  const job={id:randomUUID(),key,browser,page,state:'running',screen:null,steps:[],pending:null,responseId:null,summary:null,error:null};
+  jobs.set(job.id,job);job.screen=await snapshot(job);
+  return advance(job,[{role:'user',content:'Use the browser to accomplish this request: '+task+'. You may navigate to public websites. Do not purchase, submit forms, send messages, change account settings, or perform irreversible actions without explicit user confirmation. If a website requires login, ask the user to take over rather than requesting passwords.'}]);
+ }catch(e){await browser.close();throw e}
+}
+async function step(id,approve){
+ const job=jobs.get(id);if(!job)throw Error('Session not found');
+ if(job.state!=='awaiting-approval'||!job.pending)throw Error('No pending action');
+ if(!approve){job.state='stopped';job.pending=null;return view(job)}
+ const pending=job.pending;job.pending=null;
+ try{
+  await execute(job,pending.action);job.steps.push({label:pending.action.type,detail:pending.action.text?.slice(0,80)||''});
+  job.screen=await snapshot(job);
+  return advance(job,[{type:'computer_call_output',call_id:pending.callId,output:{type:'computer_screenshot',image_url:job.screen},acknowledged_safety_checks:pending.checks.map(x=>({id:x.id,code:x.code,message:x.message}))}]);
+ }catch(e){job.state='error';job.error=e.message;return view(job)}
+}
+async function status(id){const job=jobs.get(id);if(!job)throw Error('Session not found');job.screen=await snapshot(job);return view(job)}
+async function stop(id){const job=jobs.get(id);if(!job)return {state:'stopped'};job.state='stopped';jobs.delete(id);await job.browser.close();return {state:'stopped'}}
+export {start,step,status,stop};
