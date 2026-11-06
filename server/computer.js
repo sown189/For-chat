@@ -3,9 +3,21 @@ import { randomUUID } from 'node:crypto';
 
 const jobs=new Map();
 const W=1280,H=800;
+const ollamaUrl=process.env.OLLAMA_BASE_URL||'http://127.0.0.1:11434';
+const visionModel=process.env.OLLAMA_VISION_MODEL||'qwen2.5vl:7b';
 const safeUrl=url=>{const u=new URL(url);if(!['http:','https:'].includes(u.protocol))throw Error('Only web pages allowed');const h=u.hostname.toLowerCase();if(h==='localhost'||h.endsWith('.local')||h.startsWith('127.')||h.startsWith('10.')||h.startsWith('192.168.')||/^172\.(1[6-9]|2\d|3[01])\./.test(h))throw Error('Private network navigation blocked');return u.toString()};
 const snapshot=async job=>'data:image/png;base64,'+(await job.page.screenshot({type:'png'})).toString('base64');
 const view=job=>({id:job.id,state:job.state,screen:job.screen,steps:job.steps.slice(-25),pending:job.pending?{action:job.pending.action}:null,summary:job.summary,error:job.error});
+async function callLocal(job){
+ const image=(await job.page.screenshot({type:'jpeg',quality:75})).toString('base64');
+ const instructions='You operate a browser based on a screenshot. Goal: '+job.task+'. Recent actions: '+JSON.stringify(job.steps.slice(-8))+'. Return ONLY one JSON object with keys type, x, y, text, scroll_y, keys, summary. type must be click, double_click, scroll, type, keypress, screenshot, or done. Coordinates are pixels on a 1280x800 screen. For type done include a concise summary. Do not submit forms, purchase, send messages or change settings. If login or CAPTCHA is required, choose done and explain.';
+ const r=await fetch(ollamaUrl+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:visionModel,stream:false,format:'json',messages:[{role:'user',content:instructions,images:[image]}]}),signal:AbortSignal.timeout(120000)});
+ const d=await r.json();if(!r.ok)throw Error(d.error||'Ollama vision request failed. Install the vision model with: ollama pull '+visionModel);
+ let a;try{a=JSON.parse(d.message?.content||'')}catch{throw Error('Local vision model returned invalid JSON')}
+ if(a.type==='done'){job.state='completed';job.summary=String(a.summary||'Task complete');job.screen=await snapshot(job);return view(job)}
+ if(!['click','double_click','scroll','type','keypress','screenshot'].includes(a.type))throw Error('Local vision model proposed unsupported action: '+a.type);
+ job.pending={action:a,callId:null,checks:[]};job.state='awaiting-approval';job.screen=await snapshot(job);return view(job);
+}
 async function callOpenAI(job,input,previous_response_id){
  const body={model:'computer-use-preview',tools:[{type:'computer_use_preview',display_width:W,display_height:H,environment:'browser'}],input,truncation:'auto'};
  if(previous_response_id)body.previous_response_id=previous_response_id;
@@ -31,6 +43,7 @@ async function advance(job,reply){
  if(job.state==='stopped')return view(job);
  try{
   job.state='running';
+  if(job.mode==='local')return await callLocal(job);
   const d=await callOpenAI(job,reply,job.responseId);
   job.responseId=d.id;
   const action=d.output?.find(x=>x.type==='computer_call');
@@ -41,9 +54,9 @@ async function advance(job,reply){
   return view(job);
  }catch(e){job.state='error';job.error=e.message;return view(job)}
 }
-async function start(task,key){
+async function start(task,key,mode='openai'){
  if(typeof task!=='string'||!task.trim()||task.length>2000)throw Error('Enter a task under 2000 characters');
- if(!key)throw Error('Connect an OpenAI API key in AI Settings first');
+ if(mode!=='local'&&!key)throw Error('Connect an OpenAI API key in AI Settings first');
  if(jobs.size>=3)throw Error('Close an existing computer session first');
  const browser=await chromium.launch({headless:true});
  try{
@@ -51,7 +64,7 @@ async function start(task,key){
   await context.route('**/*',async route=>{try{safeUrl(route.request().url());await route.continue()}catch{await route.abort()}});
   const page=await context.newPage();
   await page.goto('https://www.google.com/',{waitUntil:'domcontentloaded',timeout:20000});
-  const job={id:randomUUID(),key,browser,page,state:'running',screen:null,steps:[],pending:null,responseId:null,summary:null,error:null};
+  const job={id:randomUUID(),key,mode,task,browser,page,state:'running',screen:null,steps:[],pending:null,responseId:null,summary:null,error:null};
   jobs.set(job.id,job);job.screen=await snapshot(job);
   return advance(job,[{role:'user',content:'Use the browser to accomplish this request: '+task+'. You may navigate to public websites. Do not purchase, submit forms, send messages, change account settings, or perform irreversible actions without explicit user confirmation. If a website requires login, ask the user to take over rather than requesting passwords.'}]);
  }catch(e){await browser.close();throw e}
@@ -64,6 +77,7 @@ async function step(id,approve){
  try{
   await execute(job,pending.action);job.steps.push({label:pending.action.type,detail:pending.action.text?.slice(0,80)||''});
   job.screen=await snapshot(job);
+  if(job.mode==='local')return advance(job,null);
   return advance(job,[{type:'computer_call_output',call_id:pending.callId,output:{type:'computer_screenshot',image_url:job.screen},acknowledged_safety_checks:pending.checks.map(x=>({id:x.id,code:x.code,message:x.message}))}]);
  }catch(e){job.state='error';job.error=e.message;return view(job)}
 }
