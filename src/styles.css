@@ -153,3 +153,33 @@ button:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-vis
 @media(max-width:760px){.deadline-form{grid-template-columns:1fr}.deadline-stats>div{padding:12px}.deadline-stats span{font-size:9px}.deadline-item{gap:10px}}
 
 .operator2{margin:24px 0;border-radius:18px;min-height:0;background:#121a13}.operator2-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}.operator2-kicker,.operator2-state{color:#c5ff2b;font:11px 'DM Mono'}.operator2-head h3 em{color:#c5ff2b;font-style:normal}.operator2-intro{color:#b4c0b0;line-height:1.7}.operator2-step{display:flex;align-items:center;gap:12px;margin:24px 0 12px}.operator2-step b{color:#c5ff2b}.operator2-address,.operator2-actions{display:flex;flex-wrap:wrap;gap:10px}.operator2-address input,.operator2-actions input{flex:1;min-width:130px}.operator2 input,.operator2 select{border-radius:10px;background:#0d130e;color:white;border:1px solid #52634c;padding:12px}.operator2 button{border-radius:9px}.operator2-empty{text-align:center;padding:35px;border:1px dashed #52634c;border-radius:12px}.operator2-page,.operator2-preview{margin:20px 0;padding:15px;border:1px solid #52634c;border-radius:12px;overflow:hidden}.operator2-page{display:flex;flex-direction:column;gap:8px}.operator2-page a{color:#c5ff2b;overflow-wrap:anywhere}.operator2-preview-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.operator2-elements{display:grid;gap:8px;max-height:240px;overflow:auto}.operator2-elements button{text-align:left;padding:12px}.operator2-elements button.chosen{border:2px solid #c5ff2b}.operator2-text{white-space:pre-wrap;overflow-wrap:anywhere;max-height:250px;overflow:auto}.operator2-error{color:#ff9d92}@media(max-width:650px){.operator2-address,.operator2-actions{flex-direction:column}.operator2-address input,.operator2-actions input{width:100%}.operator2-preview-head{flex-wrap:wrap}}
+
+.computer-use{max-width:1120px;margin:0 auto;padding:clamp(20px,4vw,44px);background:#111711;border:1px solid #35412f;border-radius:24px;color:#f4f6ed;display:grid;gap:24px}
+.computer-use-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.computer-use-kicker{font:12px 'DM Mono',monospace;letter-spacing:2px;color:#c5ff2b}
+.computer-use h2{font:900 clamp(42px,6vw,84px)/.95 'Barlow Condensed',sans-serif;margin:14px 0}
+.computer-use h2 em{font-style:normal;color:#c5ff2b}
+.computer-use-heading p{color:#b8c3b3;max-width:600px;line-height:1.7}
+.computer-use-status{padding:9px 14px;border:1px solid #50653e;border-radius:99px;font:11px 'DM Mono';color:#c5ff2b;white-space:nowrap}
+.computer-use-form{display:grid;gap:12px}
+.computer-use-form label{font:12px 'DM Mono';letter-spacing:1.4px;color:#b7c4b0}
+.computer-use-form textarea{width:100%;min-height:115px;resize:vertical;border:1px solid #53644b;background:#090f0a;border-radius:16px;padding:20px;color:white;font:16px/1.6 'DM Sans',sans-serif}
+.computer-use-actions,.computer-use-view-top,.computer-use-approval>div{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.computer-use-actions span,.computer-use-view-top span{display:flex;align-items:center;gap:8px;color:#aab8a3;font:12px 'DM Mono'}
+.computer-use button{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:12px 19px;border:1px solid #c5ff2b;background:#c5ff2b;color:#101710;border-radius:12px;font:700 12px 'DM Mono';transition:transform .2s,opacity .2s}
+.computer-use button:hover:not(:disabled){transform:translateY(-2px)}
+.computer-use button:disabled{opacity:.5;cursor:not-allowed}
+.computer-use button.computer-use-stop{background:transparent;color:#f1b8ad;border-color:#a25b50}
+.computer-use-view{border:1px solid #3a4935;border-radius:18px;overflow:hidden;background:#070b08}
+.computer-use-view-top{padding:14px 18px;border-bottom:1px solid #35412f}
+.computer-use-view-top button{background:#202c1d;color:#c5ff2b;border-color:#526b43}
+.computer-use-view img{display:block;width:100%;height:auto;object-fit:contain}
+.computer-use-placeholder{min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;color:#91a18b;padding:30px}
+.computer-use-placeholder strong{color:#e5efdf;font:800 23px 'Barlow Condensed'}
+.computer-use-placeholder p{margin:0}
+.computer-use-approval{border:1px solid #b6b05a;background:#29291a;border-radius:16px;padding:20px}
+.computer-use-approval strong{color:#f6e98a}
+.computer-use-approval p{line-height:1.7;overflow-wrap:anywhere}
+.computer-use-result,.computer-use-history{padding:18px;border:1px solid #3b4e35;border-radius:12px;line-height:1.7}
+.computer-use-error{color:#ffb6a8}
+@media(max-width:650px){.computer-use-heading{flex-direction:column}.computer-use-actions button{width:100%}.computer-use-placeholder{min-height:220px}}
