@@ -90,7 +90,7 @@ http.createServer(async(req,res)=>{
    current.count++;
    if(choice.action==='done'){current.state='completed';current.summary=String(choice.summary||'Research finished.').slice(0,1600);current.steps.push({label:'Research complete',kind:'done'});}
    else if(choice.action==='navigate'||choice.action==='click'){const link=view.links.find(l=>l.index===choice.index);if(!link)throw Error('AI chose an unavailable link.');const target=safeUrl(link.href);if(choice.action==='click'){
-     const el=page.locator('a[href]').filter({hasText:link.text}).first();
+     const el=page.locator('a[href]').nth(link.index);
      const visible=await el.isVisible().catch(()=>false);
      if(visible){try{await el.evaluate(a=>{a.style.outline='4px solid #c5ff2b';a.style.outlineOffset='4px'});await el.click({timeout:1800});await page.waitForLoadState('domcontentloaded',{timeout:5000}).catch(()=>{});}catch{await page.goto(target,{waitUntil:'domcontentloaded',timeout:15000})}}
      else await page.goto(target,{waitUntil:'domcontentloaded',timeout:15000});
