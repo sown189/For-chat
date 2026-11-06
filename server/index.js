@@ -1,4 +1,5 @@
 import * as operator from './operator.js';
+import * as computer from './computer.js';
 import http from 'node:http';
 import { URL } from 'node:url';
 const port=Number(process.env.API_PORT||8787);
@@ -14,6 +15,19 @@ async function canvas(path){
 }
 http.createServer(async(req,res)=>{
  if(!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
+ if(req.url.startsWith('/api/computer/')) {
+  try{
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>12000)throw Error('Request too large')}
+   const body=JSON.parse(raw||'{}');
+   let result;
+   if(req.url==='/api/computer/start'&&req.method==='POST')result=await computer.start(body.task,openaiKey);
+   else if(req.url==='/api/computer/step'&&req.method==='POST')result=await computer.step(body.id,body.approve===true);
+   else if(req.url==='/api/computer/status'&&req.method==='POST')result=await computer.status(body.id);
+   else if(req.url==='/api/computer/stop'&&req.method==='POST')result=await computer.stop(body.id);
+   else return json(res,404,{error:'Unknown computer endpoint'});
+   return json(res,200,result);
+  }catch(e){return json(res,400,{error:e.message})}
+ }
  if(req.url.startsWith('/api/operator/')) {
   try {
    const body = await new Promise((resolve,reject)=>{
