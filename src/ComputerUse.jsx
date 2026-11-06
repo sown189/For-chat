@@ -34,7 +34,7 @@ export default function ComputerUse(){
  const checkDiagnostics=async()=>{try{const r=await fetch('/api/agent/diagnostics');const d=await r.json();if(!r.ok)throw Error(d.error||'Backend error');setDiagnostics(d)}catch(e){setDiagnostics({error:e.message})}};
  const stop=async()=>{if(job?.id)await request('stop',{id:job.id});setJob(null)};
  return <section className="computer-use">
-  <header className="computer-use-heading"><div><span className="computer-use-kicker">FINESSERS / COMPUTER USE</span><h2>TELL IT. <em>WATCH IT.</em></h2><p>Describe what you want done. OpenAI controls a separate browser while you watch and approve each action.</p></div><span className="computer-use-status">{busy?'WORKING':job?.state?.toUpperCase()||'READY'}</span></header>
+  <header className="computer-use-heading"><div><span className="computer-use-kicker">FINESSERS / COMPUTER USE</span><h2>TELL IT. <em>WATCH IT.</em></h2><p>Describe what you want done. An AI model controls a separate browser while you watch and approve each action.</p></div><span className="computer-use-status">{busy?'WORKING':job?.state?.toUpperCase()||'READY'}</span></header>
 
   <div className="computer-use-diagnostics"><button type="button" onClick={checkDiagnostics}>CHECK SYSTEM</button>{diagnostics&&<p role="status">{diagnostics.error||('Backend: '+diagnostics.backend+' · Computer route: '+(diagnostics.computerRoute?'available':'missing')+' · OpenAI key: '+(diagnostics.openaiConnected?'connected':'not connected')+' · Version: '+diagnostics.version)}</p>}</div>
   {mode==='openai'&&<details className="computer-use-key" open={!connected}><summary><LockKeyhole size={16}/> OPENAI CONNECTION — {serverReady===false?'SERVER OFFLINE':connected?'CONNECTED':'SETUP REQUIRED'}</summary>
