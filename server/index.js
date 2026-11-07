@@ -1,3 +1,4 @@
+import {canvasClient} from './canvas-client.js';
 import {validateCanvasSource} from './canvas-source.js';
 import {createAcademicAgent} from './academic-agent.js';
 import {investigateCourseMission} from './course-investigation.js';
@@ -15,16 +16,13 @@ const ollamaModel=process.env.OLLAMA_MODEL||'qwen3:4b';
 const canvasOrigin=process.env.CANVAS_BASE_URL;
 const token=process.env.CANVAS_ACCESS_TOKEN;
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'http://localhost:5173'});res.end(JSON.stringify(data))};
-async function canvas(path){
- const response=await fetch(new URL(path,canvasOrigin),{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(15000)});
- if(!response.ok)throw Error('Canvas returned '+response.status);
- return response.json();
-}
+const canvasApi=canvasOrigin&&token?canvasClient({baseUrl:canvasOrigin,token}):null;
+const canvas=path=>canvasApi.get(path);
 async function loadCanvasDeadlines(){
-  const courses=await canvas('/api/v1/courses?enrollment_state=active&per_page=100');
+  const courses=await canvasApi.list('/api/v1/courses?enrollment_state=active&per_page=100');
   const active=Array.isArray(courses)?courses.filter(c=>c.id&&c.workflow_state!=='deleted'): [];
   const results=await Promise.allSettled(active.slice(0,30).map(async course=>{
-   const assignments=await canvas('/api/v1/courses/'+encodeURIComponent(course.id)+'/assignments?bucket=upcoming&per_page=100');
+   const assignments=await canvasApi.list('/api/v1/courses/'+encodeURIComponent(course.id)+'/assignments?bucket=upcoming&per_page=100');
    return (Array.isArray(assignments)?assignments:[]).filter(a=>a.due_at).map(a=>({
     id:String(course.id)+'-'+String(a.id),course:course.name||course.course_code||'Course',
     title:a.name||'Untitled assignment',dueAt:a.due_at,url:a.html_url||null,
