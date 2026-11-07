@@ -31,6 +31,8 @@ try{
   await page.getByRole('heading',{level:1,name:/FINESSERS/}).waitFor();
   await page.locator('.fx-velocity-strip').waitFor();
   await page.locator('.fx-laptop').waitFor();
+  const wordmarkSize=await page.locator('.fx-landing-brand .fx-mark').evaluate(el=>parseFloat(getComputedStyle(el).fontSize));
+  assert.ok(wordmarkSize>=24,'Landing brand must be readable: '+wordmarkSize+'px');
   const layout=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth-innerWidth,hero:getComputedStyle(document.querySelector('.fx-hero')).backgroundImage}));
   assert.ok(layout.overflow<=2,'Desktop must not scroll horizontally: '+layout.overflow);
   assert.match(layout.hero,/gradient/);
@@ -42,6 +44,8 @@ try{
   await page.setViewportSize({width:390,height:844});
   await page.reload({waitUntil:'networkidle'});
   await page.getByRole('button',{name:/ENTER THE BROWSER/}).waitFor();
+  assert.ok(await page.locator('.fx-landing-brand .fx-mark').isVisible(),'Mobile wordmark must remain visible');
+  assert.ok((await page.locator('.fx-landing-brand .fx-mark').boundingBox()).width>100,'Mobile wordmark must be legible');
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   assert.ok(overflow<=2,'Mobile landing must not scroll horizontally: '+overflow);
   await page.setViewportSize({width:1440,height:900});
