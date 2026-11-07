@@ -44,6 +44,7 @@ export default function ComputerUse(){
   </details>}
   <div className="computer-use-modes"><label><input type="radio" name="computer-mode" checked={mode==='local'} onChange={()=>setMode('local')}/> LOCAL AI (OLLAMA · EXPERIMENTAL)</label><label><input type="radio" name="computer-mode" checked={mode==='openai'} onChange={()=>setMode('openai')}/> OPENAI API</label></div>
   {mode==='local'&&<p className="computer-use-local-help">No API key required. Install Ollama, then run <code>ollama pull qwen2.5vl:7b</code>. This experimental local vision agent may make mistakes; approve each action carefully.</p>}
+  <div className="fx-computer-quickstarts"><button type="button" disabled={busy||!!job?.id} onClick={()=>setTask("Open https://www.fau.edu/registrar/ and find the academic calendar. Report the source URL and important dates. Ask approval before each action.")}>TRY A PUBLIC-WEBSITE NAVIGATION</button></div>
   <form className="computer-use-form" onSubmit={e=>{e.preventDefault();if(task.trim())request('start',{task:task.trim(),mode})}}>
    <label htmlFor="computer-task">WHAT SHOULD FINESSERS DO?</label>
    <textarea id="computer-task" rows={3} value={task} onChange={e=>setTask(e.target.value)} placeholder="Find my university's academic calendar and tell me the next important deadlines..." maxLength={2000} required disabled={busy||!!job?.id}/>
@@ -54,6 +55,6 @@ export default function ComputerUse(){
   {job?.id&&['completed','error','stopped'].includes(job.state)&&<button type="button" onClick={stop}>NEW TASK</button>}
   {job?.summary&&<p className="computer-use-result">{job.summary}</p>}
   {(error||job?.error)&&<p className="computer-use-error" role="alert">{error||job.error}</p>}
-  {job?.steps?.length>0&&<details className="computer-use-history"><summary>COMPLETED ACTIONS ({job.steps.length})</summary>{job.steps.map((s,i)=><p key={i}>{i+1}. {s.label} {s.detail}</p>)}</details>}
+  {job?.steps?.length>0&&<div className="computer-use-history" aria-label="Computer use action timeline"><strong>LIVE ACTION TIMELINE ({job.steps.length})</strong>{job.steps.map((s,i)=><p key={i}>{i+1}. {s.label} {s.detail}</p>)}</div>}
  </section>
 }
