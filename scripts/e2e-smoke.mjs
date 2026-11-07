@@ -54,6 +54,8 @@ try{
   await page.goto(site,{waitUntil:'networkidle'});
   await page.getByRole('button',{name:/ENTER THE BROWSER/i}).click();
   await page.getByRole('heading',{name:'AI BROWSER'}).waitFor();
+  await page.locator('.fx-command-ribbon').waitFor();
+  assert.ok(await page.locator('.fx-browser-shell').isVisible(),'Interactive browser shell must be visible');
  });
  await check('unified browser displays Canvas tab and AI copilot',async()=>{
   await page.getByRole('tab',{name:'Canvas Live'}).waitFor();
@@ -207,6 +209,7 @@ try{
   await page.getByRole('button',{name:'Toggle navigation'}).click();
   await page.getByRole('button',{name:'Beta Setup'}).last().click();
   await page.getByRole('heading',{name:'BETA SETUP'}).waitFor();
+  assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth))<=2,'Mobile workspace must not scroll horizontally');
   await page.setViewportSize({width:1440,height:900});
  });
  await context.close();
