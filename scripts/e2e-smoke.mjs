@@ -58,10 +58,10 @@ try{
  await check('new website tab and address validation',async()=>{
   await page.getByRole('button',{name:/NEW TAB/i}).click();
   await page.getByRole('textbox',{name:'Website address'}).fill('javascript:alert(1)');
-  await page.getByRole('button',{name:'SAVE ADDRESS'}).click();
+  await page.getByRole('button',{name:/^GO$/}).click();
   await page.getByRole('alert').filter({hasText:'valid http(s)'}).waitFor();
   await page.getByRole('textbox',{name:'Website address'}).fill('https://example.com/');
-  await page.getByRole('button',{name:'SAVE ADDRESS'}).click();
+  await page.getByRole('button',{name:/^GO$/}).click();
   await page.getByText('https://example.com/',{exact:true}).first().waitFor();
  });
  await check('study generator creates and reveals a flashcard',async()=>{
