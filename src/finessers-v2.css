@@ -258,3 +258,6 @@
  .fx-v2-app .fx-browser-assistant{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#5c7b3e transparent}
  .fx-v2-app .fx-assistant-messages{flex:0 0 auto;min-height:92px;max-height:220px}
 }
+
+.fx-mobile-scrim{display:none}
+@media(max-width:950px){.fx-v2-app .fx-mobile-scrim{display:block;position:fixed;inset:70px 0 0;z-index:49;border:0;border-radius:0;background:#000b;backdrop-filter:blur(5px);cursor:pointer}}
