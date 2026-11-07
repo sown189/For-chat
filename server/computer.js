@@ -1,7 +1,8 @@
 import { chromium } from 'playwright';
 import { randomUUID } from 'node:crypto';
 import {checkUrl} from './operator.js';
-import {VIEWPORT,MAX_APPROVED_ACTIONS,authorizeReadOnlyRequest,validateProposedAction,authorizeAction} from './computer-policy.js';
+import {VIEWPORT,authorizeReadOnlyRequest,validateProposedAction,authorizeAction} from './computer-policy.js';
+import {captureBrowserObservation} from './computer-observation.js';
 
 const jobs=new Map();
 const W=VIEWPORT.width,H=VIEWPORT.height;
@@ -12,8 +13,8 @@ async function pruneJobs(){const now=Date.now();await Promise.all([...jobs].filt
 const ollamaUrl=process.env.OLLAMA_BASE_URL||'http://127.0.0.1:11434';
 const visionModel=process.env.OLLAMA_VISION_MODEL||'qwen2.5vl:7b';
 const safeUrl=checkUrl;
-const snapshot=async job=>'data:image/png;base64,'+(await job.page.screenshot({type:'png'})).toString('base64');
-const view=job=>({id:job.id,state:job.state,screen:job.screen,steps:job.steps.slice(-25),pending:job.pending?{action:job.pending.action}:null,summary:job.summary,error:job.error});
+const snapshot=async job=>{const observation=await captureBrowserObservation(job.page);job.lastObservedAt=observation.observedAt;return observation.screen};
+const view=job=>({id:job.id,state:job.state,screen:job.screen,steps:job.steps.slice(-25),pending:job.pending?{action:job.pending.action}:null,summary:job.summary,error:job.error,observedAt:job.lastObservedAt||null});
 async function callLocal(job){
  const image=(await job.page.screenshot({type:'jpeg',quality:75})).toString('base64');
  const instructions='You operate a browser based on a screenshot. Goal: '+job.task+'. Recent actions: '+JSON.stringify(job.steps.slice(-8))+'. Return ONLY one JSON object with keys type, x, y, text, scroll_y, keys, summary. type must be click, double_click, scroll, type, keypress, screenshot, or done. Coordinates are pixels on a 1280x800 screen. For type done include a concise summary. Do not submit forms, purchase, send messages or change settings. If login or CAPTCHA is required, choose done and explain.';
