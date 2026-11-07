@@ -38,7 +38,7 @@ try{
  });
  await check('AI tab metadata is opt-in',async()=>{
   const sidebar=page.getByRole('complementary',{name:'Finessers AI sidebar'});
-  const box=sidebar.getByRole('checkbox');
+  const box=sidebar.getByRole('checkbox',{name:/Include tab title and URL/});
   assert.equal(await box.isChecked(),false);
   await box.check();assert.equal(await box.isChecked(),true);
   await box.uncheck();
@@ -62,7 +62,8 @@ try{
   await page.getByRole('alert').filter({hasText:'valid http(s)'}).waitFor();
   await page.getByRole('textbox',{name:'Website address'}).fill('https://example.com/');
   await page.getByRole('button',{name:/^GO$/}).click();
-  await page.getByText('https://example.com/',{exact:true}).first().waitFor();
+  await page.getByRole('tab',{name:'example.com'}).waitFor();
+  assert.match(await page.getByRole('textbox',{name:'Website address'}).getAttribute('placeholder'),/example\.com/);
  });
  await check('study generator creates and reveals a flashcard',async()=>{
   await page.getByRole('button',{name:'Study',exact:true}).first().click();
@@ -111,6 +112,73 @@ try{
   await page.getByRole('button',{name:/Reading/}).click();
   await page.getByText('Study the material').waitFor();
   await page.unroute('**/api/canvas/navigate?*');
+ });
+ await check('page-aware AI keeps page text private until opt-in',async()=>{
+  const sidebar=page.getByRole('complementary',{name:'Finessers AI sidebar'});
+  await sidebar.getByText(/PAGE TEXT READY/).waitFor();
+  const consent=sidebar.getByRole('checkbox',{name:/Include current page text/});
+  assert.equal(await consent.isChecked(),false);
+  const prompts=[];
+  await page.route('**/api/agent/plan',async route=>{
+   prompts.push(route.request().postDataJSON().task);
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({plan:'Page-aware response '+prompts.length})});
+  });
+  await sidebar.getByRole('button',{name:'EXPLAIN'}).click();
+  await sidebar.getByText('Page-aware response 1').waitFor();
+  assert.ok(!prompts[0].includes('Study the material'),'Page text must not be transmitted by default');
+  await consent.check();
+  await sidebar.getByRole('button',{name:'EXPLAIN'}).click();
+  await sidebar.getByText('Page-aware response 2').waitFor();
+  assert.ok(prompts[1].includes('Study the material'),'Opt-in must include the selected page text');
+  await page.unroute('**/api/agent/plan');
+  await sidebar.getByRole('button',{name:/STUDY THIS PAGE/}).click();
+  await page.getByRole('heading',{name:'STUDY GENERATOR'}).waitFor();
+  assert.match(await page.getByLabel('YOUR NOTES').inputValue(),/Study the material/);
+  await page.getByRole('heading',{name:/7-DAY PRACTICE PLAN/}).waitFor();
+ });
+ await check('Canvas deadline radar auto-syncs and opens local study',async()=>{
+  await page.route('**/api/course-mission',async route=>{
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({totalUpcoming:1,dueThisWeek:1,tasks:[{id:'42-9',course:'Demo Course',title:'Demo Due Assignment',dueAt:'2026-11-10T17:00:00Z',priority:'high',studyActions:['Read details'],url:'https://example.edu/courses/42/assignments/9'}],canvas:{partial:false}})});
+  });
+  await page.route('**/api/course-context?*',async route=>{
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({context:{description:'Voir dire — Jury selection questioning'},guide:{requirements:['Explain voir dire']}})});
+  });
+  await page.getByRole('button',{name:'Browser',exact:true}).first().click();
+  const radar=page.getByRole('region',{name:'Canvas deadlines radar'});
+  await radar.getByText('Demo Due Assignment').waitFor();
+  await radar.getByRole('button',{name:'STUDY'}).click();
+  await page.getByRole('heading',{name:'STUDY GENERATOR'}).waitFor();
+  await page.getByText('Jury selection questioning',{exact:true}).first().waitFor();
+  await page.unroute('**/api/course-mission');
+  await page.unroute('**/api/course-context?*');
+ });
+ await check('beta checklist exposes actual local deployment blockers',async()=>{
+  await page.getByRole('button',{name:'Beta Setup'}).first().click();
+  const setup=page.getByRole('region',{name:'Private beta setup'});
+  await setup.getByText('Public user authentication').waitFor();
+  assert.ok(await setup.getByText('Production readiness').count()>0);
+  assert.ok(await setup.getByText('NOT READY',{exact:true}).count()>=2);
+ });
+ await check('computer use shows explicit next action and approved timeline',async()=>{
+  await page.route('**/api/computer/start',async route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'demo-session',state:'awaiting-approval',pending:{action:{type:'click',x:10,y:30}},steps:[]})}));
+  await page.route('**/api/computer/step',async route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'demo-session',state:'completed',steps:[{label:'click',detail:'navigation link'}],summary:'Demo task completed'})}));
+  await page.getByRole('button',{name:'Browser',exact:true}).first().click();
+  await page.locator('.fx-computer-advanced summary').click();
+  await page.getByLabel('WHAT SHOULD FINESSERS DO?').fill('Open the school calendar');
+  await page.getByRole('button',{name:'START COMPUTER USE'}).click();
+  await page.getByText('APPROVE NEXT COMPUTER ACTION').waitFor();
+  await page.getByRole('button',{name:/APPROVE & CONTINUE/}).click();
+  await page.getByRole('heading',{name:/ACTION TIMELINE/}).waitFor();
+  await page.getByText('Demo task completed').waitFor();
+  await page.unroute('**/api/computer/start');
+  await page.unroute('**/api/computer/step');
+ });
+ await check('mobile navigation remains available',async()=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole('button',{name:'Toggle navigation'}).click();
+  await page.getByRole('button',{name:'Beta Setup'}).last().click();
+  await page.getByRole('heading',{name:'BETA SETUP'}).waitFor();
+  await page.setViewportSize({width:1440,height:900});
  });
  await context.close();
 }finally{await browser.close()}
