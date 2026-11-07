@@ -4,7 +4,8 @@ const pause = ms => new Promise(resolve=>setTimeout(resolve,ms));
 export function canvasClient({baseUrl,token,fetchImpl=fetch,sleep=pause,maxPages=10}){
  if(!baseUrl||!token)throw Error('Canvas connection is not configured');
  const base=new URL(baseUrl);
- if(!['https:','http:'].includes(base.protocol))throw Error('Unsupported Canvas protocol');
+ if(base.protocol!=='https:'&&!(base.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(base.hostname)))throw Error('Canvas API requires HTTPS except for local loopback development');
+ if(base.username||base.password||base.search||base.hash)throw Error('Invalid Canvas API origin');
  const request=async url=>{
   const target=new URL(url,base);
   if(target.origin!==base.origin)throw Error('Canvas request must stay on configured origin');
