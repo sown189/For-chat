@@ -1,3 +1,4 @@
+import AcademicAgent from './AcademicAgent.jsx';
 import React,{useMemo,useState,useEffect} from 'react';
 import {CalendarDays,CheckCircle2,ClipboardList} from 'lucide-react';
 
@@ -94,6 +95,7 @@ export default function CourseCockpit(){
  };
  const change=(id,patch)=>setItems(prev=>prev.map(x=>x.id===id?{...x,...patch}:x));
  return <section className="panel" aria-label="Course cockpit">
+  <AcademicAgent/>
   <h3><ClipboardList size={22}/> COURSE COCKPIT <small>READ-ONLY MVP</small></h3>
   <p>Paste a syllabus or assignment list. Finessers detects dated lines and lets you verify each one before it enters your study plan. Everything stays in this browser.</p>
   <div className="note-card">
