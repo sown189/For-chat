@@ -1,14 +1,13 @@
 import { chromium } from 'playwright';
 import { randomUUID } from 'node:crypto';
 import {checkUrl} from './operator.js';
+import {VIEWPORT,MAX_APPROVED_ACTIONS,authorizeReadOnlyRequest,validateProposedAction,authorizeAction} from './computer-policy.js';
 
 const jobs=new Map();
-const W=1280,H=800;
+const W=VIEWPORT.width,H=VIEWPORT.height;
 const MAX_JOBS=3;
 const JOB_TTL_MS=20*60*1000;
-const MAX_ACTIONS=40;
-const READ_ONLY_METHODS=new Set(['GET','HEAD']);
-function assertReadOnlyRequest(url,method){safeUrl(url);if(!READ_ONLY_METHODS.has(String(method).toUpperCase()))throw Error('Write requests are blocked in read-only beta');return true;}
+const assertReadOnlyRequest=authorizeReadOnlyRequest;
 async function pruneJobs(){const now=Date.now();await Promise.all([...jobs].filter(([,job])=>now-job.createdAt>JOB_TTL_MS).map(async([id,job])=>{jobs.delete(id);job.state='stopped';await job.browser.close().catch(()=>{})}));}
 const ollamaUrl=process.env.OLLAMA_BASE_URL||'http://127.0.0.1:11434';
 const visionModel=process.env.OLLAMA_VISION_MODEL||'qwen2.5vl:7b';
@@ -31,26 +30,10 @@ async function callOpenAI(job,input,previous_response_id){
  const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer '+job.key,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(90000)});
  const d=await r.json();if(!r.ok)throw Error(d.error?.message||'OpenAI computer-use request failed');return d;
 }
-function validateComputerAction(a){
- if(!a||typeof a!=='object'||!['click','double_click','scroll','type','keypress','move','drag','screenshot'].includes(a.type))throw Error('Unsupported computer action');
- if(['click','double_click','move'].includes(a.type)){
-  if(!Number.isFinite(a.x)||!Number.isFinite(a.y)||a.x<0||a.y<0||a.x>=W||a.y>=H)throw Error('Computer action coordinates outside the browser');
- }
- if(a.type==='click'&&!['left',undefined].includes(a.button))throw Error('Only left clicks are supported');
- if(a.type==='scroll'&&(!Number.isFinite(Number(a.scroll_y||0))||Math.abs(Number(a.scroll_y||0))>1500||!Number.isFinite(Number(a.scroll_x||0))||Math.abs(Number(a.scroll_x||0))>1500))throw Error('Scroll amount exceeds safe limit');
- if(a.type==='type'&&(typeof a.text!=='string'||a.text.length>3000))throw Error('Invalid typed text');
- if(a.type==='keypress'){
-  if(!Array.isArray(a.keys)||a.keys.length<1||a.keys.length>4||a.keys.some(k=>typeof k!=='string'||!(/^(?:ARROWUP|ARROWDOWN|ARROWLEFT|ARROWRIGHT|TAB|ESC|ESCAPE|BACKSPACE|DELETE|HOME|END|PAGEUP|PAGEDOWN|CTRL|META|SHIFT|ALT|[A-Z0-9])$/i).test(k)))throw Error('Unsupported keyboard shortcut');
-  if(a.keys.some(k=>/^(ENTER|RETURN)$/i.test(k)))throw Error('Enter key is blocked in read-only beta');
- }
- if(a.type==='drag'){
-  if(!Array.isArray(a.path)||a.path.length<2||a.path.length>30||a.path.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)||p.x<0||p.y<0||p.x>=W||p.y>=H))throw Error('Invalid drag path');
- }
- return a;
-}
+const validateComputerAction=validateProposedAction;
 async function execute(job,a){
+ // Execution receives an authorized immutable copy, never a raw model proposal.
  validateComputerAction(a);
- if(job.steps.length>=MAX_ACTIONS)throw Error('Maximum approved actions reached; start a new task');
  const p=job.page;switch(a.type){
  case 'click':await p.mouse.click(a.x,a.y,{button:a.button||'left'});break;
  case 'double_click':await p.mouse.dblclick(a.x,a.y);break;
@@ -112,7 +95,8 @@ async function step(id,approve){
  job.stepping=true;
  const pending=job.pending;job.pending=null;
  try{
-  await execute(job,pending.action);job.steps.push({label:pending.action.type,detail:pending.action.text?.slice(0,80)||''});
+  const authorized=authorizeAction(pending.action,{approved:true,steps:job.steps.length});
+  await execute(job,authorized);job.steps.push({label:authorized.type,detail:authorized.text?.slice(0,80)||''});
   job.screen=await snapshot(job);
   if(job.mode==='local')return advance(job,null);
   return advance(job,[{type:'computer_call_output',call_id:pending.callId,output:{type:'computer_screenshot',image_url:job.screen},acknowledged_safety_checks:pending.checks.map(x=>({id:x.id,code:x.code,message:x.message}))}]);
