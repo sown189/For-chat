@@ -69,7 +69,7 @@ try{
   await page.getByLabel('YOUR NOTES').fill('Due process — Fair legal procedures');
   await page.getByRole('button',{name:'GENERATE STUDY CARDS'}).click();
   await page.getByText('TAP TO REVEAL ANSWER').click();
-  await page.getByText('Fair legal procedures').waitFor();
+  await page.locator('.fx-study-cards button span').getByText('Fair legal procedures',{exact:true}).waitFor();
  });
  await check('mission create, complete and delete',async()=>{
   await page.getByRole('button',{name:'Missions',exact:true}).first().click();
@@ -77,7 +77,7 @@ try{
   await page.getByRole('button',{name:'CREATE MISSION'}).click();
   await page.getByText('Review course notes').waitFor();
   await page.getByRole('button',{name:'COMPLETE'}).click();
-  await page.getByText(/COMPLETED/).waitFor();
+  await page.locator('.fx-mission-list article small').getByText(/^COMPLETED/).waitFor();
   await page.getByRole('button',{name:'DELETE'}).click();
   assert.equal(await page.getByText('Review course notes').count(),0);
  });
