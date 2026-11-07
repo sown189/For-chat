@@ -27,14 +27,45 @@ export default function CourseCockpit(){
  const [source,setSource]=useState('');
  const [items,setItems]=useState(load);
  const [notice,setNotice]=useState('');
+ const [syncing,setSyncing]=useState(false);
+ const [canvasStatus,setCanvasStatus]=useState('');
  useEffect(()=>localStorage.setItem(KEY,JSON.stringify(items)),[items]);
  const approved=useMemo(()=>items.filter(x=>x.approved).sort((a,b)=>a.due.localeCompare(b.due)),[items]);
  const upcoming=approved.filter(x=>!x.done&&x.due>=new Date().toISOString().slice(0,10)).slice(0,8);
  const importText=e=>{e.preventDefault();const found=extractDeadlines(source).map((x,i)=>({...x,id:Date.now()+'-'+i,course:course.trim()||'My course'}));setItems(prev=>[...prev,...found]);setNotice(found.length+' potential deadlines found. Review each one against your syllabus before approving.');};
+ const syncCanvas=async()=>{
+  setSyncing(true);setCanvasStatus('');
+  try{
+   const response=await fetch('http://127.0.0.1:8787/api/deadlines');
+   const data=await response.json();
+   if(!response.ok)throw Error(data.error||'Canvas connection failed');
+   const valid=(Array.isArray(data.assignments)?data.assignments:[]).filter(a=>a&&a.id&&a.dueAt&&a.title);
+   let added=0;
+   setItems(prev=>{
+    const existing=new Set(prev.map(x=>x.canvasId).filter(Boolean));
+    const incoming=valid.filter(a=>!existing.has(String(a.id))).map(a=>{
+     const date=new Date(a.dueAt);
+     if(Number.isNaN(date.getTime()))return null;
+     added++;
+     return {id:'canvas-'+String(a.id),canvasId:String(a.id),due:date.toISOString().slice(0,10),title:String(a.title).slice(0,180),course:String(a.course||'Canvas course'),source:'Canvas assignment'+(a.url?' · '+a.url:''),approved:false,done:false};
+    }).filter(Boolean);
+    return [...prev,...incoming];
+   });
+   setCanvasStatus('Canvas returned '+valid.length+' dated assignments. Review imported deadlines below; existing imports are not duplicated.'+(data.partial?' Some courses failed to load.':''));
+  }catch(e){setCanvasStatus('Canvas sync unavailable: '+e.message)}
+  finally{setSyncing(false)}
+ };
  const change=(id,patch)=>setItems(prev=>prev.map(x=>x.id===id?{...x,...patch}:x));
  return <section className="panel" aria-label="Course cockpit">
   <h3><ClipboardList size={22}/> COURSE COCKPIT <small>READ-ONLY MVP</small></h3>
   <p>Paste a syllabus or assignment list. Finessers detects dated lines and lets you verify each one before it enters your study plan. Everything stays in this browser.</p>
+  <div className="note-card">
+   <strong>CONNECT CANVAS ASSIGNMENTS</strong>
+   <p>Import upcoming assignment titles and due dates from your configured Canvas account. Nothing is submitted or modified in Canvas. Review every imported deadline before approving it.</p>
+   <button type="button" onClick={syncCanvas} disabled={syncing}>{syncing?'SYNCING…':'IMPORT FROM CANVAS'}</button>
+   {canvasStatus&&<p role="status">{canvasStatus}</p>}
+   <p><small>Requires the local Finessers backend with CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN configured. Credentials stay on the backend.</small></p>
+  </div>
   <form className="stacked" onSubmit={importText}>
    <label htmlFor="cockpit-course">COURSE</label>
    <input id="cockpit-course" value={course} onChange={e=>setCourse(e.target.value)} placeholder="e.g. Introduction to Criminal Justice" required/>
@@ -58,6 +89,6 @@ export default function CourseCockpit(){
    <p>Suggested study sequence: review source material → write down what you remember → practice questions → check mistakes before the deadline.</p>
    <button onClick={()=>change(x.id,{done:true})}>MARK COMPLETE</button>
   </article>})}
-  <p><small>Dates are extracted heuristically, not verified automatically. Check all entries against the original course source. No school website is accessed and no assignments are submitted.</small></p>
+  <p><small>Pasted dates are extracted heuristically. Canvas imports read assignment metadata only when configured. Check all entries against the original course source. No assignments are submitted.</small></p>
  </section>;
 }
