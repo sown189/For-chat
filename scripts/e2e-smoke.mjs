@@ -106,7 +106,7 @@ try{
    };
    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(fixtures[view]||{})});
   });
-  await page.getByRole('button',{name:'REFRESH',exact:true}).click();
+  await page.getByRole('region',{name:'Authenticated Canvas navigator'}).getByRole('button',{name:'REFRESH',exact:true}).click();
   await page.getByRole('button',{name:/Demo Course/}).click();
   await page.getByRole('button',{name:/Demo Assignment/}).click();
   await page.getByText('Practice these concepts').waitFor();
