@@ -31,7 +31,25 @@ async function callOpenAI(job,input,previous_response_id){
  const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer '+job.key,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(90000)});
  const d=await r.json();if(!r.ok)throw Error(d.error?.message||'OpenAI computer-use request failed');return d;
 }
+function validateComputerAction(a){
+ if(!a||typeof a!=='object'||!['click','double_click','scroll','type','keypress','move','drag','screenshot'].includes(a.type))throw Error('Unsupported computer action');
+ if(['click','double_click','move'].includes(a.type)){
+  if(!Number.isFinite(a.x)||!Number.isFinite(a.y)||a.x<0||a.y<0||a.x>=W||a.y>=H)throw Error('Computer action coordinates outside the browser');
+ }
+ if(a.type==='click'&&!['left',undefined].includes(a.button))throw Error('Only left clicks are supported');
+ if(a.type==='scroll'&&(!Number.isFinite(Number(a.scroll_y||0))||Math.abs(Number(a.scroll_y||0))>1500||!Number.isFinite(Number(a.scroll_x||0))||Math.abs(Number(a.scroll_x||0))>1500))throw Error('Scroll amount exceeds safe limit');
+ if(a.type==='type'&&(typeof a.text!=='string'||a.text.length>3000))throw Error('Invalid typed text');
+ if(a.type==='keypress'){
+  if(!Array.isArray(a.keys)||a.keys.length<1||a.keys.length>4||a.keys.some(k=>typeof k!=='string'||!(/^(?:ARROWUP|ARROWDOWN|ARROWLEFT|ARROWRIGHT|TAB|ESC|ESCAPE|BACKSPACE|DELETE|HOME|END|PAGEUP|PAGEDOWN|CTRL|META|SHIFT|ALT|[A-Z0-9])$/i).test(k)))throw Error('Unsupported keyboard shortcut');
+  if(a.keys.some(k=>/^(ENTER|RETURN)$/i.test(k)))throw Error('Enter key is blocked in read-only beta');
+ }
+ if(a.type==='drag'){
+  if(!Array.isArray(a.path)||a.path.length<2||a.path.length>30||a.path.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)||p.x<0||p.y<0||p.x>=W||p.y>=H))throw Error('Invalid drag path');
+ }
+ return a;
+}
 async function execute(job,a){
+ validateComputerAction(a);
  if(job.steps.length>=MAX_ACTIONS)throw Error('Maximum approved actions reached; start a new task');
  const p=job.page;switch(a.type){
  case 'click':await p.mouse.click(a.x,a.y,{button:a.button||'left'});break;
@@ -84,7 +102,13 @@ async function step(id,approve){
  const job=jobs.get(id);if(!job)throw Error('Session not found');
  if(job.stepping)throw Error('An action is already in progress');
  if(job.state!=='awaiting-approval'||!job.pending)throw Error('No pending action');
- if(!approve){job.state='stopped';job.pending=null;return view(job)}
+ if(!approve){
+  job.state='stopped';job.pending=null;
+  const result=view(job);
+  jobs.delete(id);
+  await job.browser.close().catch(()=>{});
+  return result;
+ }
  job.stepping=true;
  const pending=job.pending;job.pending=null;
  try{
@@ -95,5 +119,5 @@ async function step(id,approve){
  }catch(e){job.state='error';job.error=e.message;return view(job)}finally{job.stepping=false}
 }
 async function status(id){await pruneJobs();const job=jobs.get(id);if(!job)throw Error('Session not found');job.screen=await snapshot(job);return view(job)}
-async function stop(id){await pruneJobs();const job=jobs.get(id);if(!job)return {state:'stopped'};job.state='stopped';jobs.delete(id);await job.browser.close();return {state:'stopped'}}
-export {start,step,status,stop,assertReadOnlyRequest};
+async function stop(id){await pruneJobs();const job=jobs.get(id);if(!job)return {id,state:'stopped'};job.state='stopped';job.pending=null;jobs.delete(id);await job.browser.close().catch(()=>{});return {id,state:'stopped'}}
+export {start,step,status,stop,assertReadOnlyRequest,validateComputerAction};
