@@ -239,3 +239,16 @@
 @keyframes fx-float{0%,100%{transform:rotate(12deg) translateY(0)}50%{transform:rotate(8deg) translateY(-11px)}}
 @keyframes fx-wave{0%,100%{opacity:.5;letter-spacing:2px}50%{opacity:1;letter-spacing:3px}}
 @media(prefers-reduced-motion:reduce){.fx-v2-landing .fx-hero-stamp,.fx-velocity-track,.fx-mock-ai-wave{animation:none!important}.fx-v2-landing *,.fx-v2-app *{transition:none!important;scroll-behavior:auto!important}}
+
+/* Copilot HUD — states reflect actual local UI state, not model connectivity. */
+.fx-assistant-topline{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:-2px;padding-bottom:10px;border-bottom:1px solid #3e5c2c;font:700 9px 'DM Mono',monospace;letter-spacing:.5px;color:#8fa881}
+.fx-assistant-signal{display:flex;align-items:center;gap:7px;color:#caff24;white-space:nowrap}
+.fx-assistant-signal .fx-dot{width:5px;height:5px}
+.fx-v2-app .fx-assistant-heading{overflow:hidden;min-height:64px}
+.fx-assistant-monogram{position:absolute;right:-3px;top:-15px;pointer-events:none;color:#caff241b;font:italic 900 88px 'Barlow Condensed',Impact,sans-serif;letter-spacing:-7px}
+.fx-assistant-context-status{display:flex;flex-wrap:wrap;gap:7px}
+.fx-assistant-context-status span{font:700 8px 'DM Mono',monospace;letter-spacing:.3px;padding:7px 8px;background:#101b0e;color:#99b78c;border:1px solid #38532a;border-radius:3px}
+.fx-assistant-context-status span:first-child{color:#d6f5bb}
+.fx-v2-app .fx-browser-assistant:focus-within{border-color:#a4d650}
+.fx-v2-app .fx-assistant-messages::-webkit-scrollbar,.fx-v2-app .fx-browser-tab-strip::-webkit-scrollbar{height:5px;width:5px}
+.fx-v2-app .fx-assistant-messages::-webkit-scrollbar-thumb,.fx-v2-app .fx-browser-tab-strip::-webkit-scrollbar-thumb{background:#688b43;border-radius:4px}
