@@ -19,6 +19,7 @@ export function createAcademicAgent({loadAssignments,readAssignment,reason,openS
     session.state='completed';event('complete','No readable descriptions; provided verified next action');return session;
    }
    const sources=session.report.investigations.filter(x=>x.guide).map(x=>({title:x.task.title,course:x.task.course,dueAt:x.task.dueAt,url:x.guide.sourceUrl,requirements:x.guide.requirements}));
+   session.sources=sources;
    session.answer=await reason({goal:session.goal,sources,limits:session.report.limitations});
    if(typeof session.answer!=='string'||!session.answer.trim())throw Error('Tutoring model returned no usable response');
    event('reason','Generated tutoring guidance from observed assignment descriptions');
@@ -36,7 +37,9 @@ export function createAcademicAgent({loadAssignments,readAssignment,reason,openS
   if(s.state!=='awaiting-approval'||!s.pending)throw Error('No pending browser action');
   const action=s.pending;s.pending=null;
   if(approved===true){
-   try{const observation=await openSource(action.url);s.events.push({type:'browser-observe',detail:JSON.stringify({title:observation.title,url:observation.url,text:String(observation.text||'').slice(0,1200)}),at:new Date().toISOString()})}
+   try{const observation=await openSource(action.url);s.events.push({type:'browser-observe',detail:JSON.stringify({title:observation.title,url:observation.url,text:String(observation.text||'').slice(0,1200)}),at:new Date().toISOString()});
+    if(observation.text){try{s.answer=await reason({goal:s.goal,sources:s.sources,observation:{url:observation.url,title:observation.title,text:String(observation.text).slice(0,4000)},limits:s.report.limitations});s.events.push({type:'reason','detail':'Updated tutoring guidance after browser observation',at:new Date().toISOString()})}catch(e){s.events.push({type:'recover',detail:'Browser observed, but follow-up tutoring failed: '+String(e.message||e),at:new Date().toISOString()})}}
+   }
    catch(e){s.error='Browser navigation failed: '+String(e.message||e);s.events.push({type:'recover',detail:s.error,at:new Date().toISOString()})}
   }else s.events.push({type:'declined',detail:'Student declined browser navigation',at:new Date().toISOString()});
   s.state='completed';return s;
