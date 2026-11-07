@@ -2,12 +2,15 @@ import {investigateCourseMission} from './course-investigation.js';
 export function createAcademicAgent({loadAssignments,readAssignment,reason,openSource}){
  if(!loadAssignments||!readAssignment||!reason)throw Error('Missing agent dependencies');
  const sessions=new Map();
+ const MAX_SESSIONS=100;
+ const MAX_EVENTS=40;
  const id=()=>globalThis.crypto.randomUUID();
  async function run(goal,{limit=5}={}){
   if(typeof goal!=='string'||!goal.trim()||goal.length>2000)throw Error('Provide a clear task under 2000 characters');
   const session={id:id(),goal:goal.trim(),state:'running',events:[],pending:null,report:null,answer:null,error:null};
+  if(sessions.size>=MAX_SESSIONS)sessions.delete(sessions.keys().next().value);
   sessions.set(session.id,session);
-  const event=(type,detail)=>session.events.push({type,detail,at:new Date().toISOString()});
+  const event=(type,detail)=>{session.events.push({type,detail,at:new Date().toISOString()});if(session.events.length>MAX_EVENTS)session.events.shift()};
   try{
    event('plan','Read upcoming Canvas assignments, inspect priority requirements, then build a grounded study response');
    const assignments=await loadAssignments();
@@ -35,6 +38,7 @@ export function createAcademicAgent({loadAssignments,readAssignment,reason,openS
   const s=sessions.get(sessionId);
   if(!s)throw Error('Unknown academic agent session');
   if(s.state!=='awaiting-approval'||!s.pending)throw Error('No pending browser action');
+  s.state='observing';
   const action=s.pending;s.pending=null;
   if(approved===true){
    try{const observation=await openSource(action.url);s.events.push({type:'browser-observe',detail:JSON.stringify({title:observation.title,url:observation.url,text:String(observation.text||'').slice(0,1200)}),at:new Date().toISOString()});
