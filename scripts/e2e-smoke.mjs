@@ -207,7 +207,9 @@ try{
  await check('mobile navigation remains available',async()=>{
   await page.setViewportSize({width:390,height:844});
   await page.getByRole('button',{name:'Toggle navigation'}).click();
+  await page.getByRole('button',{name:'Close navigation'}).waitFor();
   await page.getByRole('button',{name:'Beta Setup'}).last().click();
+  assert.equal(await page.getByRole('button',{name:'Close navigation'}).count(),0);
   await page.getByRole('heading',{name:'BETA SETUP'}).waitFor();
   assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth))<=2,'Mobile workspace must not scroll horizontally');
   await page.setViewportSize({width:1440,height:900});
