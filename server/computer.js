@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { randomUUID } from 'node:crypto';
-import {checkUrl} from './operator.js';
+import {checkUrl,verifyPublicUrl} from './operator.js';
 import {VIEWPORT,authorizeReadOnlyRequest,validateProposedAction,authorizeAction} from './computer-policy.js';
 import {captureBrowserObservation} from './computer-observation.js';
 
@@ -14,7 +14,7 @@ const ollamaUrl=process.env.OLLAMA_BASE_URL||'http://127.0.0.1:11434';
 const visionModel=process.env.OLLAMA_VISION_MODEL||'qwen2.5vl:7b';
 const safeUrl=checkUrl;
 const snapshot=async job=>{const observation=await captureBrowserObservation(job.page);job.lastObservedAt=observation.observedAt;return observation.screen};
-const view=job=>({id:job.id,state:job.state,screen:job.screen,steps:job.steps.slice(-25),pending:job.pending?{action:job.pending.action}:null,summary:job.summary,error:job.error,observedAt:job.lastObservedAt||null});
+const view=job=>({id:job.id,state:job.state,screen:job.screen,steps:job.steps.slice(-25),pending:job.pending?{action:job.pending.action,checks:job.pending.checks?.map(c=>({code:c.code,message:c.message}))||[]}:null,summary:job.summary,error:job.error,observedAt:job.lastObservedAt||null});
 async function callLocal(job){
  const image=(await job.page.screenshot({type:'jpeg',quality:75})).toString('base64');
  const instructions='You operate a browser based on a screenshot. Goal: '+job.task+'. Recent actions: '+JSON.stringify(job.steps.slice(-8))+'. Return ONLY one JSON object with keys type, x, y, text, scroll_y, keys, summary. type must be click, double_click, scroll, type, keypress, screenshot, or done. Coordinates are pixels on a 1280x800 screen. For type done include a concise summary. Do not submit forms, purchase, send messages or change settings. If login or CAPTCHA is required, choose done and explain.';
@@ -72,7 +72,7 @@ async function start(task,key,mode='openai'){
  const browser=await chromium.launch({headless:true});
  try{
   const context=await browser.newContext({viewport:{width:W,height:H},acceptDownloads:false});
-  await context.route('**/*',async route=>{try{assertReadOnlyRequest(route.request().url(),route.request().method());await route.continue()}catch{await route.abort()}});
+  await context.route('**/*',async route=>{try{assertReadOnlyRequest(route.request().url(),route.request().method());await verifyPublicUrl(route.request().url());await route.continue()}catch{await route.abort()}});
   const page=await context.newPage();
   page.on('popup',popup=>popup.close().catch(()=>{}));
   await page.goto('https://www.google.com/',{waitUntil:'domcontentloaded',timeout:20000});
