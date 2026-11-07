@@ -76,7 +76,7 @@ export default function CourseCockpit(){
  const syncCanvas=async()=>{
   setSyncing(true);setCanvasStatus('');
   try{
-   const response=await fetch('http://127.0.0.1:8787/api/deadlines');
+   const response=await fetch('/api/deadlines');
    const data=await response.json();
    if(!response.ok)throw Error(data.error||'Canvas connection failed');
    const valid=(Array.isArray(data.assignments)?data.assignments:[]).filter(a=>a&&a.id&&a.dueAt&&a.title);
