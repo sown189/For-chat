@@ -32,6 +32,7 @@ export default function CourseCockpit(){
  useEffect(()=>localStorage.setItem(KEY,JSON.stringify(items)),[items]);
  const approved=useMemo(()=>items.filter(x=>x.approved).sort((a,b)=>a.due.localeCompare(b.due)),[items]);
  const upcoming=approved.filter(x=>!x.done&&x.due>=new Date().toISOString().slice(0,10)).slice(0,8);
+ const nextWeek=upcoming.filter(x=>(new Date(x.due+'T12:00:00')-new Date())/86400000<=7);
  const importText=e=>{e.preventDefault();const found=extractDeadlines(source).map((x,i)=>({...x,id:Date.now()+'-'+i,course:course.trim()||'My course'}));setItems(prev=>[...prev,...found]);setNotice(found.length+' potential deadlines found. Review each one against your syllabus before approving.');};
  const syncCanvas=async()=>{
   setSyncing(true);setCanvasStatus('');
@@ -40,13 +41,11 @@ export default function CourseCockpit(){
    const data=await response.json();
    if(!response.ok)throw Error(data.error||'Canvas connection failed');
    const valid=(Array.isArray(data.assignments)?data.assignments:[]).filter(a=>a&&a.id&&a.dueAt&&a.title);
-   let added=0;
    setItems(prev=>{
     const existing=new Set(prev.map(x=>x.canvasId).filter(Boolean));
     const incoming=valid.filter(a=>!existing.has(String(a.id))).map(a=>{
      const date=new Date(a.dueAt);
      if(Number.isNaN(date.getTime()))return null;
-     added++;
      return {id:'canvas-'+String(a.id),canvasId:String(a.id),due:date.toISOString().slice(0,10),title:String(a.title).slice(0,180),course:String(a.course||'Canvas course'),source:'Canvas assignment'+(a.url?' · '+a.url:''),approved:false,done:false};
     }).filter(Boolean);
     return [...prev,...incoming];
@@ -83,10 +82,11 @@ export default function CourseCockpit(){
    <button className="remove" onClick={()=>setItems(prev=>prev.filter(y=>y.id!==x.id))}>DISCARD</button>
   </article>)}
   <h3><CalendarDays size={20}/> YOUR STUDY PLAN <small>{approved.length} VERIFIED</small></h3>
+  {nextWeek.length>0&&<p role="status">{nextWeek.length} approved assignment(s) due within seven days. Prioritize the earliest deadlines first.</p>}
   {!upcoming.length&&<p>Approve upcoming deadlines to build your plan. Completed or past deadlines are excluded.</p>}
   {upcoming.map(x=>{const days=Math.ceil((new Date(x.due+'T12:00:00')-new Date())/86400000);return <article className="note-card" key={x.id}>
    <strong>{x.title}</strong><p>{x.course} · Due {x.due} · {Math.max(0,days)} day(s) remaining</p>
-   <p>Suggested study sequence: review source material → write down what you remember → practice questions → check mistakes before the deadline.</p>
+   <p>Suggested study sequence: review source material → recall from memory → answer practice questions → correct mistakes. {days<=1?'Due soon: prioritize review and submission preparation.':days<=3?'Split preparation across today and tomorrow.':'Start with a short review session today and revisit before the due date.'}</p>
    <button onClick={()=>change(x.id,{done:true})}>MARK COMPLETE</button>
   </article>})}
   <p><small>Pasted dates are extracted heuristically. Canvas imports read assignment metadata only when configured. Check all entries against the original course source. No assignments are submitted.</small></p>
