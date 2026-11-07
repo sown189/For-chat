@@ -1,5 +1,6 @@
 import {checkLocalRequest,localApiHeaders} from './local-api-security.js';
 import {canvasClient} from './canvas-client.js';
+import {canvasNavigate} from './canvas-navigator.js';
 import {validateCanvasSource} from './canvas-source.js';
 import {createAcademicAgent} from './academic-agent.js';
 import {investigateCourseMission} from './course-investigation.js';
@@ -137,6 +138,13 @@ http.createServer(async(req,res)=>{
    }
    return json(res,404,{error:'Unsupported AI route: '+req.url+'. Use Workspace → AI Operator for computer use.'});
   }catch(e){return json(res,500,{error:e.message})}
+ }
+ if(req.method==='GET'&&req.url.startsWith('/api/canvas/navigate?')){
+  if(!canvasApi)return json(res,503,{error:'Canvas credentials are not configured'});
+  try{
+   const params=new URL(req.url,'http://localhost').searchParams;
+   return json(res,200,await canvasNavigate(canvasApi,{view:params.get('view'),courseId:params.get('courseId'),assignmentId:params.get('assignmentId')}));
+  }catch(e){return json(res,400,{error:'Canvas navigation failed: '+e.message})}
  }
  if(req.method==='GET'&&req.url==='/api/canvas/verify'){
   if(!canvasApi)return json(res,503,{connected:false,error:'Canvas credentials are not configured'});
