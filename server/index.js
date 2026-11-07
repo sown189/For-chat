@@ -1,3 +1,4 @@
+import {investigateCourseMission} from './course-investigation.js';
 import {assignmentContext,buildGroundedStudyGuide} from './course-context.js';
 import {buildCourseMission} from './course-mission.js';
 import * as operator from './operator.js';
@@ -109,11 +110,15 @@ http.createServer(async(req,res)=>{
  }
  if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
  if(req.url==='/api/health')return json(res,200,{configured:!!(canvasOrigin&&token)});
- if(req.url!=='/api/deadlines'&&req.url!=='/api/course-mission')return json(res,404,{error:'Not found'});
+ if(req.url!=='/api/deadlines'&&req.url!=='/api/course-mission'&&req.url!=='/api/course-investigation')return json(res,404,{error:'Not found'});
  if(!canvasOrigin||!token)return json(res,503,{error:'Set CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN in your terminal first.'});
  try{
   const data=await loadCanvasDeadlines();
   if(req.url==='/api/course-mission')return json(res,200,{...buildCourseMission(data.assignments),canvas:{courses:data.courses,partial:data.partial,failedCourses:data.failedCourses,checkedAt:data.checkedAt}});
+  if(req.url==='/api/course-investigation'){
+   const report=await investigateCourseMission(data.assignments,(courseId,assignmentId)=>canvas('/api/v1/courses/'+courseId+'/assignments/'+assignmentId));
+   return json(res,200,{...report,canvas:{courses:data.courses,partial:data.partial,failedCourses:data.failedCourses,checkedAt:data.checkedAt}});
+  }
   return json(res,200,data);
  }catch(e){return json(res,502,{error:'Could not load Canvas data: '+e.message})}
 }).listen(port,'127.0.0.1',()=>console.log('Finessers Canvas connector listening on http://localhost:'+port));
