@@ -72,3 +72,31 @@
     url('/For-chat/finessers-background.webp') center 30px / 100% auto no-repeat;
  }
 }
+
+
+/* Platform foundations: tabs, local missions and offline study tools */
+.fx-inline-form{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+.fx-inline-form input{flex:1;min-width:210px;background:#111610;border:1px solid #48513d;border-radius:9px;padding:13px;color:#fff}
+.fx-inline-form button,.fx-mission-list button{border:1px solid #5d6c46;border-radius:8px;background:#252d20;color:#f5f5f0;padding:10px 15px;cursor:pointer}
+.fx-inline-form .fx-neon{background:#c4ff00;color:#101210}
+.fx-generator{margin-bottom:20px}
+.fx-generator h2,.fx-missions h2,.fx-tabs h2{font:900 36px 'Barlow Condensed',sans-serif;margin:0 0 8px}
+.fx-generator p,.fx-missions p,.fx-tabs p{color:#b9c3b2;line-height:1.6}
+.fx-generator label{display:block;margin:20px 0 8px;font-size:12px;font-weight:800;color:#c4ff00}
+.fx-generator textarea{width:100%;box-sizing:border-box;background:#111610;color:#fff;border:1px solid #48513d;border-radius:10px;padding:15px;resize:vertical}
+.fx-study-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.fx-study-cards button,.fx-mission-list article,.fx-tab-preview{background:#202620;border:1px solid #414d3c;border-radius:12px;padding:18px;color:#fff}
+.fx-study-cards button{text-align:left;display:flex;flex-direction:column;gap:14px;min-height:155px}
+.fx-study-cards small,.fx-mission-list small{color:#c4ff00;font-size:10px;letter-spacing:1px}
+.fx-study-cards strong{font-size:17px}
+.fx-study-cards span{color:#b7c4ac;font-size:13px}
+.fx-mission-list{display:grid;gap:12px}
+.fx-mission-list article{display:flex;flex-wrap:wrap;align-items:center;gap:15px}
+.fx-mission-list article strong{flex:1;min-width:200px}
+.fx-mission-list article div{display:flex;gap:8px;flex-wrap:wrap}
+.fx-tab-strip{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+.fx-tab-strip>div{display:flex;border:1px solid #46523f;border-radius:8px;overflow:hidden}
+.fx-tab-strip button{background:#202720;color:#eee;border:0;padding:10px;cursor:pointer}
+.fx-tab-strip [aria-selected=true]{background:#c4ff00;color:#101210;font-weight:800}
+.fx-tab-preview a{color:#c4ff00;font-weight:800}
+@media(max-width:650px){.fx-inline-form{flex-direction:column}.fx-mission-list article{align-items:flex-start;flex-direction:column}}
