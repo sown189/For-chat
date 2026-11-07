@@ -85,18 +85,8 @@ async function act(id, action) {
       if (!href) throw Error('Link has no destination');
       checkUrl(new URL(href,s.page.url()).toString());
       await target.click();
-    } else if (action.type === 'fill') {
-      throw Error('Read-only mode blocks typing into websites');
-      /*
-      const type = (await target.getAttribute('type') || '').toLowerCase();
-      if (['password','hidden','file'].includes(type)) throw Error('Sensitive fields are not supported');
-      if (typeof action.value !== 'string' || action.value.length > 2000) throw Error('Invalid input');
-      await target.fill(action.value);
     } else {
-      if (typeof action.value !== 'string' || action.value.length > 200) throw Error('Invalid selection');
-      await target.selectOption(action.value);
-      */
-      throw Error('Read-only mode blocks form selections');
+      throw Error('Read-only mode blocks form interaction');
     }
   }
   return observe(id);
