@@ -114,13 +114,13 @@ http.createServer(async(req,res)=>{
   try {
    const chunks=[];for await(const chunk of req){chunks.push(chunk);if(Buffer.concat(chunks).length>100000)throw Error('Request too large')}
    const body=JSON.parse(Buffer.concat(chunks).toString()||'{}');
-   if(req.url==='/api/agent/health')return json(res,200,{ready:true,provider,modelConfigured:provider==='ollama'||!!openaiKey,computerConfigured:!!openaiKey,ollamaModel});
+   if(req.url==='/api/agent/health')return json(res,200,{ready:true,provider,modelConfigured:provider==='ollama'||!!openaiKey,computerConfigured:!!openaiKey,openaiConnected:!!openaiKey,ollamaModel});
    if(req.url==='/api/agent/diagnostics')return json(res,200,{backend:'online',provider,openaiConnected:!!openaiKey,computerRoute:true,ollamaModel,version:'2026-11-06'});
    if(req.url==='/api/agent/provider'&&req.method==='POST'){
     if(!['openai','ollama'].includes(body.provider))return json(res,400,{error:'Choose OpenAI or Ollama'});
     provider=body.provider;return json(res,200,{provider,modelConfigured:provider==='ollama'||!!openaiKey});
    }
-   if(req.url==='/api/agent/provider-key'&&req.method==='DELETE'){openaiKey='';return json(res,200,{ok:true})}
+   if(req.url==='/api/agent/provider-key'&&req.method==='DELETE'){openaiKey='';await computer.revokeOpenAIKey();return json(res,200,{ok:true})}
    if(req.url==='/api/agent/provider-key'&&req.method==='POST'){
     if(body.provider!=='openai'||typeof body.key!=='string'||!body.key.startsWith('sk-'))return json(res,400,{error:'Enter a valid OpenAI API key'});
     const check=await fetch('https://api.openai.com/v1/models',{headers:{Authorization:'Bearer '+body.key},signal:AbortSignal.timeout(15000)});
