@@ -64,6 +64,9 @@ try{
   await page.getByRole('button',{name:/^GO$/}).click();
   await page.getByRole('tab',{name:'example.com'}).waitFor();
   assert.match(await page.getByRole('textbox',{name:'Website address'}).getAttribute('placeholder'),/example\.com/);
+  await page.getByRole('button',{name:'AI NAVIGATE THIS SITE'}).click();
+  assert.match(await page.getByLabel('WHAT SHOULD FINESSERS DO?').inputValue(),/example\\.com/);
+  await page.locator('.fx-computer-advanced summary').click();
  });
  await check('study generator creates and reveals a flashcard',async()=>{
   await page.getByRole('button',{name:'Study',exact:true}).first().click();
