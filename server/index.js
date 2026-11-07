@@ -1,3 +1,4 @@
+import {buildCourseMission} from './course-mission.js';
 import * as operator from './operator.js';
 import * as computer from './computer.js';
 import http from 'node:http';
@@ -14,6 +15,22 @@ async function canvas(path){
  const response=await fetch(new URL(path,canvasOrigin),{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(15000)});
  if(!response.ok)throw Error('Canvas returned '+response.status);
  return response.json();
+}
+async function loadCanvasDeadlines(){
+  const courses=await canvas('/api/v1/courses?enrollment_state=active&per_page=100');
+  const active=Array.isArray(courses)?courses.filter(c=>c.id&&c.workflow_state!=='deleted'): [];
+  const results=await Promise.allSettled(active.slice(0,30).map(async course=>{
+   const assignments=await canvas('/api/v1/courses/'+encodeURIComponent(course.id)+'/assignments?bucket=upcoming&per_page=100');
+   return (Array.isArray(assignments)?assignments:[]).filter(a=>a.due_at).map(a=>({
+    id:String(course.id)+'-'+String(a.id),course:course.name||course.course_code||'Course',
+    title:a.name||'Untitled assignment',dueAt:a.due_at,url:a.html_url||null,
+    points:a.points_possible??null
+   }));
+  }));
+  const assignments=results.flatMap(r=>r.status==='fulfilled'?r.value:[]).sort((a,b)=>new Date(a.dueAt)-new Date(b.dueAt));
+  const failures=results.filter(r=>r.status==='rejected').length;
+  return {courses:active.length,assignments,partial:failures>0,failedCourses:failures,checkedAt:new Date().toISOString()};
+ 
 }
 http.createServer(async(req,res)=>{
  if(!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
@@ -79,21 +96,11 @@ http.createServer(async(req,res)=>{
  }
  if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
  if(req.url==='/api/health')return json(res,200,{configured:!!(canvasOrigin&&token)});
- if(req.url!=='/api/deadlines')return json(res,404,{error:'Not found'});
+ if(req.url!=='/api/deadlines'&&req.url!=='/api/course-mission')return json(res,404,{error:'Not found'});
  if(!canvasOrigin||!token)return json(res,503,{error:'Set CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN in your terminal first.'});
  try{
-  const courses=await canvas('/api/v1/courses?enrollment_state=active&per_page=100');
-  const active=Array.isArray(courses)?courses.filter(c=>c.id&&c.workflow_state!=='deleted'): [];
-  const results=await Promise.allSettled(active.slice(0,30).map(async course=>{
-   const assignments=await canvas('/api/v1/courses/'+encodeURIComponent(course.id)+'/assignments?bucket=upcoming&per_page=100');
-   return (Array.isArray(assignments)?assignments:[]).filter(a=>a.due_at).map(a=>({
-    id:String(course.id)+'-'+String(a.id),course:course.name||course.course_code||'Course',
-    title:a.name||'Untitled assignment',dueAt:a.due_at,url:a.html_url||null,
-    points:a.points_possible??null
-   }));
-  }));
-  const assignments=results.flatMap(r=>r.status==='fulfilled'?r.value:[]).sort((a,b)=>new Date(a.dueAt)-new Date(b.dueAt));
-  const failures=results.filter(r=>r.status==='rejected').length;
-  json(res,200,{courses:active.length,assignments,partial:failures>0,failedCourses:failures,checkedAt:new Date().toISOString()});
- }catch(e){json(res,502,{error:'Could not load Canvas data: '+e.message})}
+  const data=await loadCanvasDeadlines();
+  if(req.url==='/api/course-mission')return json(res,200,{...buildCourseMission(data.assignments),canvas:{courses:data.courses,partial:data.partial,failedCourses:data.failedCourses,checkedAt:data.checkedAt}});
+  return json(res,200,data);
+ }catch(e){return json(res,502,{error:'Could not load Canvas data: '+e.message})}
 }).listen(port,'127.0.0.1',()=>console.log('Finessers Canvas connector listening on http://localhost:'+port));
