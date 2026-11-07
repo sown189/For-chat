@@ -1,5 +1,5 @@
 import React,{useState,useCallback,useEffect} from 'react';
-import {ArrowRight,ArrowUpRight,BookOpen,BrainCircuit,Check,ChevronDown,Clock3,FileText,FolderOpen,Globe2,GraduationCap,Layers3,LockKeyhole,Menu,Monitor,MousePointer2,Pause,Play,Send,ShieldCheck,Sparkles,Square,Target,Wifi,X,Zap,Search,Command,PanelLeftClose,PanelLeftOpen,ArrowUpRight} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,BookOpen,BrainCircuit,Check,ChevronDown,Clock3,FileText,FolderOpen,Globe2,GraduationCap,Layers3,LockKeyhole,Menu,Monitor,MousePointer2,Pause,Play,Send,ShieldCheck,Sparkles,Square,Target,Wifi,X,Zap,Search,Command,PanelLeftClose,PanelLeftOpen} from 'lucide-react';
 import ComputerUse from './ComputerUse.jsx';
 import CourseCockpit from './CourseCockpit.jsx';
 import Missions from './Missions.jsx';
