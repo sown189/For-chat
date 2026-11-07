@@ -1,3 +1,4 @@
+import {checkLocalRequest,localApiHeaders} from './local-api-security.js';
 import {canvasClient} from './canvas-client.js';
 import {validateCanvasSource} from './canvas-source.js';
 import {createAcademicAgent} from './academic-agent.js';
@@ -15,7 +16,7 @@ const ollamaUrl=process.env.OLLAMA_BASE_URL||'http://127.0.0.1:11434';
 const ollamaModel=process.env.OLLAMA_MODEL||'qwen3:4b';
 const canvasOrigin=process.env.CANVAS_BASE_URL;
 const token=process.env.CANVAS_ACCESS_TOKEN;
-const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'http://localhost:5173'});res.end(JSON.stringify(data))};
+const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'http://localhost:5173',...localApiHeaders()});res.end(JSON.stringify(data))};
 const canvasApi=canvasOrigin&&token?canvasClient({baseUrl:canvasOrigin,token}):null;
 const canvas=path=>canvasApi.get(path);
 async function loadCanvasDeadlines(){
@@ -58,6 +59,8 @@ const academicAgent=createAcademicAgent({
  }
 });
 http.createServer(async(req,res)=>{
+ const securityError=checkLocalRequest(req);
+ if(securityError)return json(res,403,{error:securityError});
  if(!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
  if(req.url.startsWith('/api/academic-agent/')){
   try{
