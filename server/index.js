@@ -66,7 +66,7 @@ const academicAgent=createAcademicAgent({
  }
 });
 http.createServer(async(req,res)=>{
- const oauthCallback=req.method==='GET'&&req.url.startsWith('/api/canvas/oauth/callback?');
+ const oauthCallback=req.method==='GET'&&req.url.startsWith('/api/canvas/oauth/callback?')&&req.headers.host==='127.0.0.1:'+port;
  const securityError=oauthCallback?null:checkLocalRequest(req);
  if(securityError)return json(res,403,{error:securityError});
  if(!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
@@ -79,6 +79,7 @@ http.createServer(async(req,res)=>{
   canvasOAuth?.disconnect();return json(res,200,{connected:false});
  }
  if(req.url.startsWith('/api/canvas/oauth/callback')&&req.method==='GET'){
+  if(!oauthCallback)return json(res,403,{error:'Canvas callback requires the configured loopback address'});
   const send=(status,message)=>{res.writeHead(status,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'"});res.end('<!doctype html><title>Finessers Canvas</title><body style="background:#111;color:#d4ff44;font:18px sans-serif;padding:3rem"><h1>FINESSERS CANVAS</h1><p>'+message+'</p><p>You can close this tab and return to Finessers.</p></body>')};
   if(!canvasOAuth)return send(503,'Canvas OAuth is not configured.');
   try{
