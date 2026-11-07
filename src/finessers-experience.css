@@ -100,3 +100,20 @@
 .fx-tab-strip [aria-selected=true]{background:#c4ff00;color:#101210;font-weight:800}
 .fx-tab-preview a{color:#c4ff00;font-weight:800}
 @media(max-width:650px){.fx-inline-form{flex-direction:column}.fx-mission-list article{align-items:flex-start;flex-direction:column}}
+
+
+.fx-canvas-browser{background:#151b15;border:1px solid #3c4c35;border-radius:12px;padding:18px;margin-top:18px;color:#f4f5f0}
+.fx-canvas-browser-head{display:flex;align-items:start;justify-content:space-between;gap:16px}
+.fx-canvas-browser-head strong{color:#c4ff00;font-size:12px;letter-spacing:1.5px}
+.fx-canvas-browser-head p{max-width:660px;font-size:13px}
+.fx-canvas-browser button{background:#252d23;border:1px solid #4c5d43;border-radius:8px;color:#eaf0e3;padding:10px;cursor:pointer}
+.fx-canvas-breadcrumb{display:flex;align-items:center;gap:8px;margin:15px 0;color:#c4ff00;font-size:12px}
+.fx-canvas-breadcrumb button{color:#c4ff00}
+.fx-canvas-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.fx-canvas-items button{text-align:left;display:flex;flex-direction:column;align-items:start;gap:10px;min-height:90px}
+.fx-canvas-items button:hover{border-color:#c4ff00}
+.fx-canvas-items span{color:#c4ff00;font-size:11px}
+.fx-canvas-detail{border-top:1px solid #3d493a;padding-top:14px}
+.fx-canvas-detail h3{font-size:24px}
+.fx-canvas-description{white-space:pre-wrap;line-height:1.7;overflow-wrap:anywhere}
+.fx-canvas-detail a{color:#c4ff00}
