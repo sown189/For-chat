@@ -29,11 +29,23 @@ export default function CourseCockpit(){
  const [notice,setNotice]=useState('');
  const [syncing,setSyncing]=useState(false);
  const [canvasStatus,setCanvasStatus]=useState('');
+ const [mission,setMission]=useState(null);
+ const [missionBusy,setMissionBusy]=useState(false);
  useEffect(()=>localStorage.setItem(KEY,JSON.stringify(items)),[items]);
  const approved=useMemo(()=>items.filter(x=>x.approved).sort((a,b)=>a.due.localeCompare(b.due)),[items]);
  const upcoming=approved.filter(x=>!x.done&&x.due>=new Date().toISOString().slice(0,10)).slice(0,8);
  const nextWeek=upcoming.filter(x=>(new Date(x.due+'T12:00:00')-new Date())/86400000<=7);
  const importText=e=>{e.preventDefault();const found=extractDeadlines(source).map((x,i)=>({...x,id:Date.now()+'-'+i,course:course.trim()||'My course'}));setItems(prev=>[...prev,...found]);setNotice(found.length+' potential deadlines found. Review each one against your syllabus before approving.');};
+ const runMission=async()=>{
+  setMissionBusy(true);setCanvasStatus('');
+  try{
+   const response=await fetch('/api/course-mission');
+   const data=await response.json();
+   if(!response.ok)throw Error(data.error||'Mission unavailable');
+   setMission(data);
+  }catch(e){setCanvasStatus('Mission unavailable: '+e.message)}
+  finally{setMissionBusy(false)}
+ };
  const syncCanvas=async()=>{
   setSyncing(true);setCanvasStatus('');
   try{
@@ -61,7 +73,20 @@ export default function CourseCockpit(){
   <div className="note-card">
    <strong>CONNECT CANVAS ASSIGNMENTS</strong>
    <p>Import upcoming assignment titles and due dates from your configured Canvas account. Nothing is submitted or modified in Canvas. Review every imported deadline before approving it.</p>
+   <button type="button" onClick={runMission} disabled={missionBusy}>{missionBusy?'INVESTIGATING…':'FIND WHAT I NEED TO DO THIS WEEK'}</button>
    <button type="button" onClick={syncCanvas} disabled={syncing}>{syncing?'SYNCING…':'IMPORT FROM CANVAS'}</button>
+   {mission&&<div className="note-card" aria-label="Course mission">
+    <h4>YOUR COURSE MISSION</h4>
+    <p>{mission.totalUpcoming} upcoming dated assignments · {mission.dueThisWeek} due within seven days</p>
+    <p><strong>Next move:</strong> {mission.nextAction}</p>
+    {mission.tasks.slice(0,8).map(t=><article key={t.id}>
+     <strong>{t.title}</strong><p>{t.course} · {t.daysUntilDue} days remaining · {t.priority} priority</p>
+     <p>{t.studyActions.join(' → ')}</p>
+     {t.url&&<a href={t.url} target="_blank" rel="noopener noreferrer">OPEN ASSIGNMENT SOURCE</a>}
+    </article>)}
+    <p><small>{mission.limitations}</small></p>
+    {mission.canvas?.partial&&<p role="status">Some Canvas courses could not be read; this mission is incomplete.</p>}
+   </div>}
    {canvasStatus&&<p role="status">{canvasStatus}</p>}
    <p><small>Requires the local Finessers backend with CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN configured. Credentials stay on the backend.</small></p>
   </div>
