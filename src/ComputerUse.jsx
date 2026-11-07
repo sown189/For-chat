@@ -1,7 +1,8 @@
 import React,{useState,useEffect} from 'react';
 import {Play,Square,Check,X,Monitor,LockKeyhole} from 'lucide-react';
-export default function ComputerUse(){
+export default function ComputerUse({seed}){
  const [task,setTask]=useState('');
+ useEffect(()=>{if(seed?.version&&seed.task)setTask(seed.task)},[seed?.version]);
  const [mode,setMode]=useState('local');
  const [job,setJob]=useState(null);
  const [busy,setBusy]=useState(false);
