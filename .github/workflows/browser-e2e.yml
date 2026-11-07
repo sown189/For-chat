@@ -1,0 +1,39 @@
+name: Browser end-to-end checks
+on:
+  push:
+    branches: [round-27-full-e2e-audit]
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'server/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'package*.json'
+      - '.github/workflows/browser-e2e.yml'
+jobs:
+  browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run build
+      - name: Start local beta servers
+        run: |
+          npm run start:all > /tmp/finessers-e2e-server.log 2>&1 &
+          echo $! > /tmp/finessers-e2e-server.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8787/api/health >/dev/null && curl -fsS http://127.0.0.1:5173/For-chat/ >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/finessers-e2e-server.log
+          exit 1
+      - run: npm run test:e2e
+      - name: Server diagnostics on failure
+        if: failure()
+        run: cat /tmp/finessers-e2e-server.log || true
