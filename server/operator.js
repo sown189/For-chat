@@ -123,4 +123,4 @@ async function close(id) {
   await s.browser.close();
   return true;
 }
-export {createSession, observe, act, close, screenshot};
+export {createSession, observe, act, close, screenshot, checkUrl};
