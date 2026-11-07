@@ -22,7 +22,9 @@ function checkUrl(raw) {
 function publicSnapshot(page) {
   return page.locator('body').innerText({timeout: 5000}).then(text => text.slice(0, 16000));
 }
-async function createSession(url) {
+async function createSession(url, options={}) {
+  const permittedOrigin=options.allowedOrigin ? new URL(options.allowedOrigin).origin : null;
+  if(permittedOrigin && new URL(url).origin!==permittedOrigin)throw Error('Browser destination is outside allowed origin');
   if (sessions.size >= MAX_SESSIONS) throw Error('Session limit reached; close an existing session');
   const browser = await chromium.launch({headless: true});
   try {
@@ -30,6 +32,7 @@ async function createSession(url) {
     await context.route('**/*', async route => {
       try {
         checkUrl(route.request().url());
+        if(permittedOrigin && route.request().isNavigationRequest() && new URL(route.request().url()).origin!==permittedOrigin)throw Error('Cross-origin navigation blocked');
         await route.continue();
       } catch {
         await route.abort();
