@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "api": "node server/index.js",
     "start:all": "node scripts/start-all.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "benchmark": "node scripts/benchmark-answers.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
