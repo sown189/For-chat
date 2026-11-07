@@ -71,6 +71,13 @@ http.createServer(async(req,res)=>{
  if(securityError)return json(res,403,{error:securityError});
  if(!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
  if(req.url==='/api/canvas/oauth/status'&&req.method==='GET')return json(res,200,{available:!!canvasOAuth,...(canvasOAuth?.status()||{connected:false}),legacyTokenConfigured:!!token});
+ if(req.url==='/api/canvas/oauth/profile'&&req.method==='GET'){
+  if(!canvasApi||(!token&&!canvasOAuth?.status().connected))return json(res,503,{error:'Connect Canvas first'});
+  try{
+   const profile=await canvasApi.get('/api/v1/users/self/profile');
+   return json(res,200,{connected:true,id:String(profile.id||''),name:String(profile.name||'Canvas student').slice(0,120),avatarUrl:null});
+  }catch(e){return json(res,502,{error:'Could not verify Canvas student identity: '+e.message})}
+ }
  if(req.url==='/api/canvas/oauth/start'&&req.method==='POST'){
   if(!canvasOAuth)return json(res,503,{error:'Configure CANVAS_BASE_URL and CANVAS_OAUTH_CLIENT_ID first'});
   try{return json(res,200,canvasOAuth.start())}catch(e){return json(res,400,{error:e.message})}
