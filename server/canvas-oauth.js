@@ -1,7 +1,6 @@
 import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 const BASE='http://127.0.0.1:8787';
 const WINDOW_MS=10*60*1000;
-const tokenMaxMs=24*60*60*1000;
 const safeBase=raw=>{const u=new URL(raw);if(u.protocol!=='https:'&&!(['localhost','127.0.0.1'].includes(u.hostname)&&u.protocol==='http:'))throw Error('Canvas OAuth requires HTTPS');if(u.username||u.password||u.search||u.hash)throw Error('Invalid Canvas origin');return u.origin};
 const encode=b=>b.toString('base64url');
 export function createCanvasOAuth({baseUrl,clientId,clientSecret,redirectUri=BASE+'/api/canvas/oauth/callback',fetchImpl=fetch,clock=()=>Date.now()}){
@@ -9,7 +8,7 @@ export function createCanvasOAuth({baseUrl,clientId,clientSecret,redirectUri=BAS
  if(!/^\d+$/.test(String(clientId||'')))throw Error('Canvas OAuth client ID is required');
  const callback=new URL(redirectUri);
  if(callback.protocol!=='http:'||!['127.0.0.1','localhost'].includes(callback.hostname)||callback.pathname!=='/api/canvas/oauth/callback')throw Error('Canvas OAuth callback must be local');
- let pending=null,token=null;
+ let pending=null,token=null,refreshing=null,generation=0;
  const start=()=>{
   const state=encode(randomBytes(32)),verifier=encode(randomBytes(48));
   pending={state,verifier,created:clock()};
@@ -35,21 +34,30 @@ export function createCanvasOAuth({baseUrl,clientId,clientSecret,redirectUri=BAS
   if(!response.ok)throw Error('Canvas token exchange failed ('+response.status+')');
   const result=await response.json();
   if(typeof result.access_token!=='string'||!result.access_token)throw Error('Canvas did not return an access token');
-  token={accessToken:result.access_token,refreshToken:typeof result.refresh_token==='string'?result.refresh_token:null,expiresAt:clock()+Math.min(Number(result.expires_in)||86400,86400)*1000};
+  generation++;
+  token={accessToken:result.access_token,refreshToken:typeof result.refresh_token==='string'?result.refresh_token:null,expiresAt:clock()+Math.min(Math.max(Number(result.expires_in)||3600,60),86400)*1000};
   return {connected:true};
  };
  const getToken=async()=>{
   if(!token)return null;
   if(token.expiresAt>clock()+60000)return token.accessToken;
   if(!token.refreshToken){token=null;return null}
-  const body=new URLSearchParams({grant_type:'refresh_token',client_id:String(clientId),refresh_token:token.refreshToken});
-  if(clientSecret)body.set('client_secret',clientSecret);
-  const response=await fetchImpl(new URL('/login/oauth2/token',origin),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Accept:'application/json'},body,redirect:'error',signal:AbortSignal.timeout(15000)});
-  if(!response.ok){token=null;throw Error('Canvas session expired; reconnect Canvas')}
-  const data=await response.json();
-  if(typeof data.access_token!=='string'||!data.access_token){token=null;throw Error('Canvas refresh failed')}
-  token={accessToken:data.access_token,refreshToken:data.refresh_token||token.refreshToken,expiresAt:clock()+Math.min(Number(data.expires_in)||86400,86400)*1000};
-  return token.accessToken;
+  if(refreshing)return refreshing;
+  const version=generation;
+  const previous=token;
+  const operation=(async()=>{
+   const body=new URLSearchParams({grant_type:'refresh_token',client_id:String(clientId),refresh_token:previous.refreshToken});
+   if(clientSecret)body.set('client_secret',clientSecret);
+   const response=await fetchImpl(new URL('/login/oauth2/token',origin),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Accept:'application/json'},body,redirect:'error',signal:AbortSignal.timeout(15000)});
+   if(!response.ok)throw Error('Canvas session expired; reconnect Canvas');
+   const data=await response.json();
+   if(typeof data.access_token!=='string'||!data.access_token)throw Error('Canvas refresh failed');
+   if(version!==generation)throw Error('Canvas connection changed during refresh');
+   token={accessToken:data.access_token,refreshToken:data.refresh_token||previous.refreshToken,expiresAt:clock()+Math.min(Math.max(Number(data.expires_in)||3600,60),86400)*1000};
+   return token.accessToken;
+  })();
+  refreshing=operation;
+  try{return await operation}catch(e){if(version===generation)token=null;throw e}finally{if(refreshing===operation)refreshing=null}
  };
- return {origin,start,complete,getToken,disconnect:()=>{pending=null;token=null},status:()=>({connected:!!token,expiresAt:token?.expiresAt||null})};
+ return {origin,start,complete,getToken,disconnect:()=>{generation++;pending=null;token=null;refreshing=null},status:()=>({connected:!!token,expiresAt:token?.expiresAt||null})};
 }
