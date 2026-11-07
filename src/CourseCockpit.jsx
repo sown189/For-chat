@@ -31,11 +31,25 @@ export default function CourseCockpit(){
  const [canvasStatus,setCanvasStatus]=useState('');
  const [mission,setMission]=useState(null);
  const [missionBusy,setMissionBusy]=useState(false);
+ const [assignmentGuide,setAssignmentGuide]=useState(null);
+ const [guideBusy,setGuideBusy]=useState(false);
  useEffect(()=>localStorage.setItem(KEY,JSON.stringify(items)),[items]);
  const approved=useMemo(()=>items.filter(x=>x.approved).sort((a,b)=>a.due.localeCompare(b.due)),[items]);
  const upcoming=approved.filter(x=>!x.done&&x.due>=new Date().toISOString().slice(0,10)).slice(0,8);
  const nextWeek=upcoming.filter(x=>(new Date(x.due+'T12:00:00')-new Date())/86400000<=7);
  const importText=e=>{e.preventDefault();const found=extractDeadlines(source).map((x,i)=>({...x,id:Date.now()+'-'+i,course:course.trim()||'My course'}));setItems(prev=>[...prev,...found]);setNotice(found.length+' potential deadlines found. Review each one against your syllabus before approving.');};
+ const investigateAssignment=async(id)=>{
+  const [courseId,assignmentId]=String(id).split('-');
+  if(!courseId||!assignmentId){setCanvasStatus('Cannot identify Canvas assignment.');return}
+  setGuideBusy(true);setCanvasStatus('');setAssignmentGuide(null);
+  try{
+   const response=await fetch('/api/course-context?courseId='+encodeURIComponent(courseId)+'&assignmentId='+encodeURIComponent(assignmentId));
+   const data=await response.json();
+   if(!response.ok)throw Error(data.error||'Could not read assignment');
+   setAssignmentGuide(data.guide);
+  }catch(e){setCanvasStatus('Assignment investigation failed: '+e.message)}
+  finally{setGuideBusy(false)}
+ };
  const runMission=async()=>{
   setMissionBusy(true);setCanvasStatus('');
   try{
@@ -82,8 +96,16 @@ export default function CourseCockpit(){
     {mission.tasks.slice(0,8).map(t=><article key={t.id}>
      <strong>{t.title}</strong><p>{t.course} · {t.daysUntilDue} days remaining · {t.priority} priority</p>
      <p>{t.studyActions.join(' → ')}</p>
+     <button type="button" disabled={guideBusy} onClick={()=>investigateAssignment(t.id)}>INVESTIGATE REQUIREMENTS</button>
      {t.url&&<a href={t.url} target="_blank" rel="noopener noreferrer">OPEN ASSIGNMENT SOURCE</a>}
     </article>)}
+    {assignmentGuide&&<div className="note-card" aria-label="Source-grounded assignment guide">
+     <h4>ASSIGNMENT BRIEF: {assignmentGuide.title}</h4>
+     {assignmentGuide.requirements.length?assignmentGuide.requirements.map((requirement,i)=><p key={i}>{i+1}. {requirement}</p>):<p>No assignment description was returned.</p>}
+     <p><strong>Next action:</strong> {assignmentGuide.nextAction}</p>
+     {assignmentGuide.sourceUrl&&<a href={assignmentGuide.sourceUrl} target="_blank" rel="noopener noreferrer">VERIFY IN CANVAS</a>}
+     <p><small>{assignmentGuide.limitations}</small></p>
+    </div>}
     <p><small>{mission.limitations}</small></p>
     {mission.canvas?.partial&&<p role="status">Some Canvas courses could not be read; this mission is incomplete.</p>}
    </div>}
