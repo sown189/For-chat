@@ -5,14 +5,16 @@ const sessions = new Map();
 const MAX_SESSIONS = 3;
 const TIMEOUT_MS = 15000;
 const allowedProtocols = new Set(['https:', 'http:']);
+const BLOCKED_HOSTS = /^(?:0|0x[0-9a-f]+|0[0-7]+|169\.254\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|198\.18\.|198\.19\.|224\.|2(?:[3-4]\d|5[0-5])\.)/i;
 function checkUrl(raw) {
   const url = new URL(raw);
   if (!allowedProtocols.has(url.protocol)) throw Error('Only HTTP(S) pages are supported');
   if (url.username || url.password) throw Error('Credentials in URLs are not allowed');
+  if (BLOCKED_HOSTS.test(url.hostname)) throw Error('Reserved network targets are blocked');
   const host = url.hostname.toLowerCase();
   if (host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0' || host === '::1' ||
       host.startsWith('127.') || host.startsWith('10.') || host.startsWith('192.168.') ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host.endsWith('.local')) {
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.test') || host === '[::1]' || host.startsWith('[fc') || host.startsWith('[fd') || host.startsWith('[fe80:')) {
     throw Error('Local or private network targets are blocked');
   }
   return url.toString();
@@ -78,9 +80,14 @@ async function act(id, action) {
     if (action.type === 'click') {
       const tag = await target.evaluate(node => node.tagName.toLowerCase());
       const type = (await target.getAttribute('type') || '').toLowerCase();
-      if (tag === 'button' || type === 'submit' || type === 'file') throw Error('Button and submission clicks require a separate approval workflow');
+      if (tag !== 'a' || type === 'submit' || type === 'file') throw Error('Read-only mode allows navigation links only');
+      const href=await target.getAttribute('href');
+      if (!href) throw Error('Link has no destination');
+      checkUrl(new URL(href,s.page.url()).toString());
       await target.click();
     } else if (action.type === 'fill') {
+      throw Error('Read-only mode blocks typing into websites');
+      /*
       const type = (await target.getAttribute('type') || '').toLowerCase();
       if (['password','hidden','file'].includes(type)) throw Error('Sensitive fields are not supported');
       if (typeof action.value !== 'string' || action.value.length > 2000) throw Error('Invalid input');
@@ -88,6 +95,8 @@ async function act(id, action) {
     } else {
       if (typeof action.value !== 'string' || action.value.length > 200) throw Error('Invalid selection');
       await target.selectOption(action.value);
+      */
+      throw Error('Read-only mode blocks form selections');
     }
   }
   return observe(id);
