@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {scoreAnswers,validateBenchmark} from '../scripts/benchmark-core.mjs';
@@ -13,4 +14,10 @@ test('benchmark counts missing predictions as incorrect',()=>{
 });
 test('benchmark rejects invalid answer keys',()=>{
  assert.throws(()=>validateBenchmark([{...questions[0],answer:'D'}]));
+});
+
+test('30 synthetic school questions have valid verified answer keys',async()=>{
+ const questions=JSON.parse(await fs.readFile(new URL('../benchmarks/synthetic-general-30.json',import.meta.url),'utf8'));
+ assert.equal(validateBenchmark(questions).length,30);
+ assert.equal(new Set(questions.map(q=>q.id)).size,30);
 });
