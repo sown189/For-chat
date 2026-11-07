@@ -252,3 +252,9 @@
 .fx-v2-app .fx-browser-assistant:focus-within{border-color:#a4d650}
 .fx-v2-app .fx-assistant-messages::-webkit-scrollbar,.fx-v2-app .fx-browser-tab-strip::-webkit-scrollbar{height:5px;width:5px}
 .fx-v2-app .fx-assistant-messages::-webkit-scrollbar-thumb,.fx-v2-app .fx-browser-tab-strip::-webkit-scrollbar-thumb{background:#688b43;border-radius:4px}
+
+/* Keep every copilot control inside its chrome at laptop/desktop heights. */
+@media(min-width:1251px){
+ .fx-v2-app .fx-browser-assistant{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#5c7b3e transparent}
+ .fx-v2-app .fx-assistant-messages{flex:0 0 auto;min-height:92px;max-height:220px}
+}
