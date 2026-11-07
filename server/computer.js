@@ -8,6 +8,7 @@ const MAX_JOBS=3;
 const JOB_TTL_MS=20*60*1000;
 const MAX_ACTIONS=40;
 const READ_ONLY_METHODS=new Set(['GET','HEAD']);
+function assertReadOnlyRequest(url,method){safeUrl(url);if(!READ_ONLY_METHODS.has(String(method).toUpperCase()))throw Error('Write requests are blocked in read-only beta');return true;}
 async function pruneJobs(){const now=Date.now();await Promise.all([...jobs].filter(([,job])=>now-job.createdAt>JOB_TTL_MS).map(async([id,job])=>{jobs.delete(id);job.state='stopped';await job.browser.close().catch(()=>{})}));}
 const ollamaUrl=process.env.OLLAMA_BASE_URL||'http://127.0.0.1:11434';
 const visionModel=process.env.OLLAMA_VISION_MODEL||'qwen2.5vl:7b';
@@ -69,7 +70,7 @@ async function start(task,key,mode='openai'){
  const browser=await chromium.launch({headless:true});
  try{
   const context=await browser.newContext({viewport:{width:W,height:H},acceptDownloads:false});
-  await context.route('**/*',async route=>{try{safeUrl(route.request().url());if(!READ_ONLY_METHODS.has(route.request().method().toUpperCase()))throw Error('Write requests are blocked in read-only beta');await route.continue()}catch{await route.abort()}});
+  await context.route('**/*',async route=>{try{assertReadOnlyRequest(route.request().url(),route.request().method());await route.continue()}catch{await route.abort()}});
   const page=await context.newPage();
   page.on('popup',popup=>popup.close().catch(()=>{}));
   await page.goto('https://www.google.com/',{waitUntil:'domcontentloaded',timeout:20000});
@@ -95,4 +96,4 @@ async function step(id,approve){
 }
 async function status(id){await pruneJobs();const job=jobs.get(id);if(!job)throw Error('Session not found');job.screen=await snapshot(job);return view(job)}
 async function stop(id){await pruneJobs();const job=jobs.get(id);if(!job)return {state:'stopped'};job.state='stopped';jobs.delete(id);await job.browser.close();return {state:'stopped'}}
-export {start,step,status,stop};
+export {start,step,status,stop,assertReadOnlyRequest};
