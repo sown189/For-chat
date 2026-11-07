@@ -1,11 +1,11 @@
 import React,{useState,useEffect} from 'react';
-import {Sparkles,Send,ShieldCheck,Copy,CheckCircle2,BookOpen} from 'lucide-react';
+import {Sparkles,Send,ShieldCheck,Copy,CheckCircle2,BookOpen,MousePointerClick} from 'lucide-react';
 const suggestions=[
  ['EXPLAIN','Explain the current topic clearly and give an example.'],
  ['FLASHCARDS','Create 8 study flashcards about the topic I provide.'],
  ['STUDY PLAN','Help me build a practical study plan for this coursework.']
 ];
-export default function BrowserAssistant({context,pageContent,onStudy}){
+export default function BrowserAssistant({context,pageContent,onStudy,onAgent}){
  const [prompt,setPrompt]=useState('');
  const [messages,setMessages]=useState([]);
  const [busy,setBusy]=useState(false);
@@ -37,6 +37,7 @@ export default function BrowserAssistant({context,pageContent,onStudy}){
   <label className="fx-context-toggle"><input type="checkbox" checked={shareContext} onChange={e=>setShareContext(e.target.checked)}/><span>Include tab title and URL in AI questions</span></label>
   <label className="fx-context-toggle"><input type="checkbox" checked={sharePage} disabled={!pageContent?.content} onChange={e=>setSharePage(e.target.checked)}/><span>Include current page text in AI question (explicit opt-in)</span></label>
   <div className="fx-assistant-consent"><ShieldCheck size={13}/> Page text stays in this browser unless you enable sharing and ask AI. Consent resets when you change pages. AI receives at most 3,500 characters.</div>
+  {context?.kind==='website'&&context.url&&<button className="fx-agent-launch" onClick={()=>onAgent?.({task:'Open '+context.url+'. Inspect the page and navigate to relevant information. Read only, ask for approval before each step, and never submit forms.'})}><MousePointerClick size={16}/> AI NAVIGATE THIS SITE</button>}
   <button className="fx-study-this-page" disabled={!pageContent?.content} onClick={()=>onStudy?.(pageContent)}><BookOpen size={16}/> STUDY THIS PAGE <small>LOCAL CARDS + PLAN</small></button>
   <div className="fx-assistant-prompts">{suggestions.map(([label,task])=><button key={label} disabled={busy} onClick={()=>ask(null,task)}>{label}</button>)}</div>
   <div className="fx-assistant-messages" role="log" aria-live="polite">{messages.length===0?<p className="fx-assistant-placeholder">Ask about your coursework, generate practice questions, or plan your study session. Page contents aren't shared automatically.</p>:messages.map((m,i)=><div className={'fx-assistant-message '+m.role} key={i}><strong>{m.role==='user'?'YOU':'FINESSERS'}</strong><p>{m.text}</p></div>)}{busy&&<p>THINKING…</p>}</div>
