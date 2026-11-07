@@ -60,7 +60,7 @@ try{
   await page.route('**/api/course-context?*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({guide:{title:'Mock Assignment',requirements:['Explain the Sixth Amendment'],nextAction:'Review the lecture notes',sourceUrl:'https://canvas.instructure.com/courses/101/assignments/202'}})}));
   await page.getByRole('button',{name:'SYNC CANVAS'}).click();
   await page.getByRole('button',{name:/Mock Assignment/}).click();
-  await page.getByText('Explain the Sixth Amendment').first().waitFor();
+  await page.getByText('What is requirement 1 for Mock Assignment?').waitFor();
   const send=page.getByRole('button',{name:'SEND REQUIREMENTS TO AI SIDEBAR'});
   assert.equal(await send.isDisabled(),true);
   await page.getByRole('checkbox',{name:/Allow sharing this assignment/}).check();
