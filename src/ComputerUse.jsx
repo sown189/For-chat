@@ -12,13 +12,13 @@ export default function ComputerUse(){
  const [keyMessage,setKeyMessage]=useState('');
  const [serverReady,setServerReady]=useState(null);
  const [diagnostics,setDiagnostics]=useState(null);
- useEffect(()=>{fetch('/api/agent/health').then(async r=>{if(!r.ok)throw Error('Backend unavailable');const d=await r.json();setServerReady(true);setConnected(!!d.modelConfigured)}).catch(()=>setServerReady(false))},[]);
+ useEffect(()=>{fetch('/api/agent/health').then(async r=>{if(!r.ok)throw Error('Backend unavailable');const d=await r.json();setServerReady(true);setConnected(!!d.openaiConnected)}).catch(()=>setServerReady(false))},[]);
  const connect=async(e)=>{e.preventDefault();setKeyBusy(true);setKeyMessage('');try{
   const r=await fetch('/api/agent/provider-key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:'openai',key:key.trim()})});
   const d=await r.json();if(!r.ok)throw Error(d.error||'Key rejected');
   setConnected(true);setKey('');setKeyMessage('API key connected for this server session.');
  }catch(e){setKeyMessage(e.message)}finally{setKeyBusy(false)}};
- const disconnect=async()=>{await fetch('/api/agent/provider-key',{method:'DELETE'});setConnected(false);setKeyMessage('Key disconnected.')};
+ const disconnect=async()=>{try{const r=await fetch('/api/agent/provider-key',{method:'DELETE'});if(!r.ok)throw Error('Could not disconnect key');setConnected(false);setJob(null);setKeyMessage('Key disconnected. Active OpenAI computer sessions were closed.')}catch(e){setKeyMessage(e.message)}};
 
  const request=async(path,body)=>{
   setBusy(true);setError('');
@@ -32,7 +32,7 @@ export default function ComputerUse(){
  const timer=setInterval(async()=>{try{const r=await fetch('/api/computer/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:job.id})});if(r.ok){const d=await r.json();setJob(prev=>prev?.id===d.id?d:prev)}}catch{}},2500);
  return()=>clearInterval(timer)},[job?.id,job?.state,busy]);
  const checkDiagnostics=async()=>{try{const r=await fetch('/api/agent/diagnostics');const d=await r.json();if(!r.ok)throw Error(d.error||'Backend error');setDiagnostics(d)}catch(e){setDiagnostics({error:e.message})}};
- const stop=async()=>{if(job?.id)await request('stop',{id:job.id});setJob(null)};
+ const stop=async()=>{if(!job?.id)return;const result=await request('stop',{id:job.id});if(result)setJob(null)};
  return <section className="computer-use">
   <header className="computer-use-heading"><div><span className="computer-use-kicker">FINESSERS / COMPUTER USE</span><h2>TELL IT. <em>WATCH IT.</em></h2><p>Describe what you want done. An AI model navigates a separate read-only browser while you watch and approve each action. Form submissions and other write requests are blocked in this beta.</p></div><span className="computer-use-status">{busy?'WORKING':job?.state?.toUpperCase()||'READY'}</span></header>
 
