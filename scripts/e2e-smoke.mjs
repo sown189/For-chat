@@ -136,6 +136,7 @@ try{
   await page.unroute('**/api/agent/plan');
   await sidebar.getByRole('button',{name:/STUDY THIS PAGE/}).click();
   await page.getByRole('heading',{name:'STUDY GENERATOR'}).waitFor();
+  await page.waitForFunction(()=>document.getElementById('fx-study-notes')?.value.includes('Study the material'));
   assert.match(await page.getByLabel('YOUR NOTES').inputValue(),/Study the material/);
   await page.getByRole('heading',{name:/7-DAY PRACTICE PLAN/}).waitFor();
  });
