@@ -182,7 +182,7 @@ http.createServer(async(req,res)=>{
   if(!canvasApi||(!token&&!canvasOAuth?.status().connected))return json(res,503,{error:'Canvas is not connected'});
   try{
    const params=new URL(req.url,'http://localhost').searchParams;
-   return json(res,200,await canvasNavigate(canvasApi,{view:params.get('view'),courseId:params.get('courseId'),assignmentId:params.get('assignmentId')},{baseUrl:canvasOrigin}));
+   return json(res,200,await canvasNavigate(canvasApi,{view:params.get('view'),courseId:params.get('courseId'),assignmentId:params.get('assignmentId'),moduleId:params.get('moduleId'),pageUrl:params.get('pageUrl')},{baseUrl:canvasOrigin}));
   }catch(e){return json(res,400,{error:'Canvas navigation failed: '+e.message})}
  }
  if(req.method==='GET'&&req.url==='/api/canvas/verify'){
