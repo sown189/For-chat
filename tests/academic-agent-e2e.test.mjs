@@ -28,6 +28,10 @@ test('full HTTP agent connects Canvas investigation to tutor reasoning (simulate
   assert.equal(ready,true);
   const api='http://127.0.0.1:'+port;
   const post=async(path,body)=>{const r=await fetch(api+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal(r.status,200);return r.json()};
+  const verification=await (await fetch(api+'/api/canvas/verify')).json();
+  assert.equal(verification.connected,true);
+  assert.equal(verification.courses,1);
+  assert.equal(verification.upcomingAssignments,1);
   await post('/api/agent/provider',{provider:'ollama'});
   const session=await post('/api/academic-agent/run',{goal:'Help me prepare for my upcoming geography quiz'});
   assert.equal(session.state,'awaiting-approval');
