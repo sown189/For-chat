@@ -11,7 +11,8 @@
     "start:all": "node scripts/start-all.mjs",
     "test": "node --test tests/*.test.mjs",
     "doctor": "node scripts/doctor.mjs",
-    "test:canvas-live": "node scripts/canvas-live-smoke.mjs"
+    "test:canvas-live": "node scripts/canvas-live-smoke.mjs",
+    "test:e2e": "node scripts/e2e-smoke.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
