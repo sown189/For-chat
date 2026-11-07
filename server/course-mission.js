@@ -4,8 +4,9 @@ export function buildCourseMission(assignments,now=new Date()){
  const today=new Date(now);
  if(Number.isNaN(today.getTime()))throw Error('Invalid current date');
  const tasks=assignments.flatMap(a=>{
+  if(!a)return [];
   const due=new Date(a.dueAt);
-  if(!a||!a.title||Number.isNaN(due.getTime())||due<today)return [];
+  if(!a.title||Number.isNaN(due.getTime())||due<today)return [];
   const days=Math.max(0,Math.ceil((due-today)/MS_DAY));
   return [{id:String(a.id),course:String(a.course||'Course'),title:String(a.title),dueAt:due.toISOString(),url:a.url||null,daysUntilDue:days,priority:days<=1?'urgent':days<=3?'high':days<=7?'medium':'upcoming',studyActions:days<=1?['Review assignment requirements and rubric','Practice the hardest topic','Check completion and submission requirements']:['Review lecture and assignment instructions','Test recall with practice questions','Correct mistakes before the deadline']}];
  }).sort((a,b)=>a.daysUntilDue-b.daysUntilDue||a.course.localeCompare(b.course));
