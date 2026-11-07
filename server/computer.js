@@ -84,7 +84,13 @@ async function step(id,approve){
  const job=jobs.get(id);if(!job)throw Error('Session not found');
  if(job.stepping)throw Error('An action is already in progress');
  if(job.state!=='awaiting-approval'||!job.pending)throw Error('No pending action');
- if(!approve){job.state='stopped';job.pending=null;return view(job)}
+ if(!approve){
+  job.state='stopped';job.pending=null;
+  const result=view(job);
+  jobs.delete(id);
+  await job.browser.close().catch(()=>{});
+  return result;
+ }
  job.stepping=true;
  const pending=job.pending;job.pending=null;
  try{
@@ -95,5 +101,5 @@ async function step(id,approve){
  }catch(e){job.state='error';job.error=e.message;return view(job)}finally{job.stepping=false}
 }
 async function status(id){await pruneJobs();const job=jobs.get(id);if(!job)throw Error('Session not found');job.screen=await snapshot(job);return view(job)}
-async function stop(id){await pruneJobs();const job=jobs.get(id);if(!job)return {state:'stopped'};job.state='stopped';jobs.delete(id);await job.browser.close();return {state:'stopped'}}
+async function stop(id){await pruneJobs();const job=jobs.get(id);if(!job)return {id,state:'stopped'};job.state='stopped';job.pending=null;jobs.delete(id);await job.browser.close().catch(()=>{});return {id,state:'stopped'}}
 export {start,step,status,stop,assertReadOnlyRequest};
