@@ -1,5 +1,6 @@
 import {checkLocalRequest,localApiHeaders} from './local-api-security.js';
 import {canvasClient} from './canvas-client.js';
+import {createCanvasOAuth} from './canvas-oauth.js';
 import {canvasNavigate} from './canvas-navigator.js';
 import {validateCanvasSource} from './canvas-source.js';
 import {createAcademicAgent} from './academic-agent.js';
@@ -19,7 +20,11 @@ const ollamaModel=process.env.OLLAMA_MODEL||'qwen3:4b';
 const canvasOrigin=process.env.CANVAS_BASE_URL;
 const token=process.env.CANVAS_ACCESS_TOKEN;
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'http://localhost:5173',...localApiHeaders()});res.end(JSON.stringify(data))};
-const canvasApi=canvasOrigin&&token?canvasClient({baseUrl:canvasOrigin,token}):null;
+const canvasOAuth=canvasOrigin&&process.env.CANVAS_OAUTH_CLIENT_ID?createCanvasOAuth({baseUrl:canvasOrigin,clientId:process.env.CANVAS_OAUTH_CLIENT_ID,clientSecret:process.env.CANVAS_OAUTH_CLIENT_SECRET}):null;
+const canvasApi=canvasOrigin&&(token||canvasOAuth)?{
+ get:async path=>(await canvasClient({baseUrl:canvasOrigin,token:(await canvasOAuth?.getToken())||token||''})).get(path),
+ list:async path=>(await canvasClient({baseUrl:canvasOrigin,token:(await canvasOAuth?.getToken())||token||''})).list(path)
+}:null;
 const canvas=path=>canvasApi.get(path);
 async function loadCanvasDeadlines(){
   const courses=await canvasApi.list('/api/v1/courses?enrollment_state=active&per_page=100');
@@ -61,9 +66,28 @@ const academicAgent=createAcademicAgent({
  }
 });
 http.createServer(async(req,res)=>{
- const securityError=checkLocalRequest(req);
+ const oauthCallback=req.method==='GET'&&req.url.startsWith('/api/canvas/oauth/callback?');
+ const securityError=oauthCallback?null:checkLocalRequest(req);
  if(securityError)return json(res,403,{error:securityError});
  if(!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
+ if(req.url==='/api/canvas/oauth/status'&&req.method==='GET')return json(res,200,{available:!!canvasOAuth,...(canvasOAuth?.status()||{connected:false}),legacyTokenConfigured:!!token});
+ if(req.url==='/api/canvas/oauth/start'&&req.method==='POST'){
+  if(!canvasOAuth)return json(res,503,{error:'Configure CANVAS_BASE_URL and CANVAS_OAUTH_CLIENT_ID first'});
+  try{return json(res,200,canvasOAuth.start())}catch(e){return json(res,400,{error:e.message})}
+ }
+ if(req.url==='/api/canvas/oauth/disconnect'&&req.method==='POST'){
+  canvasOAuth?.disconnect();return json(res,200,{connected:false});
+ }
+ if(req.url.startsWith('/api/canvas/oauth/callback')&&req.method==='GET'){
+  const send=(status,message)=>{res.writeHead(status,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'"});res.end('<!doctype html><title>Finessers Canvas</title><body style="background:#111;color:#d4ff44;font:18px sans-serif;padding:3rem"><h1>FINESSERS CANVAS</h1><p>'+message+'</p><p>You can close this tab and return to Finessers.</p></body>')};
+  if(!canvasOAuth)return send(503,'Canvas OAuth is not configured.');
+  try{
+   const params=new URL(req.url,'http://127.0.0.1').searchParams;
+   if(params.has('error'))return send(400,'Canvas authorization was declined.');
+   await canvasOAuth.complete({state:params.get('state'),code:params.get('code')});
+   return send(200,'Canvas connected successfully.');
+  }catch{return send(400,'Canvas login failed. Return to Finessers and try again.')}
+ }
  if(req.url==='/api/health'&&req.method==='GET')return json(res,200,{configured:!!canvasApi,mode:'local-beta',publicReady:false,authentication:false,canvasCredentialsConfigured:!!canvasApi});
  if(req.url.startsWith('/api/academic-agent/')){
   try{
@@ -71,7 +95,7 @@ http.createServer(async(req,res)=>{
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>12000)throw Error('Request too large')}
    const body=JSON.parse(raw||'{}');
    if(req.url==='/api/academic-agent/run'){
-    if(!canvasOrigin||!token)return json(res,503,{error:'Canvas connection is not configured'});
+    if(!canvasApi)return json(res,503,{error:'Canvas connection is not configured'});
     return json(res,200,await academicAgent.run(body.goal,{limit:5}));
    }
    if(req.url==='/api/academic-agent/approve')return json(res,200,await academicAgent.approve(body.id,body.approved===true));
@@ -140,7 +164,7 @@ http.createServer(async(req,res)=>{
   }catch(e){return json(res,500,{error:e.message})}
  }
  if(req.method==='GET'&&req.url.startsWith('/api/canvas/navigate?')){
-  if(!canvasApi)return json(res,503,{error:'Canvas credentials are not configured'});
+  if(!canvasApi||(!token&&!canvasOAuth?.status().connected))return json(res,503,{error:'Canvas is not connected'});
   try{
    const params=new URL(req.url,'http://localhost').searchParams;
    return json(res,200,await canvasNavigate(canvasApi,{view:params.get('view'),courseId:params.get('courseId'),assignmentId:params.get('assignmentId')},{baseUrl:canvasOrigin}));
@@ -154,7 +178,7 @@ http.createServer(async(req,res)=>{
   }catch(e){return json(res,502,{connected:false,error:'Canvas verification failed: '+String(e.message||e)})}
  }
  if(req.method==='GET'&&req.url.startsWith('/api/course-context?')){
-  if(!canvasOrigin||!token)return json(res,503,{error:'Configure Canvas on the backend first.'});
+  if(!canvasApi)return json(res,503,{error:'Configure Canvas on the backend first.'});
   try{
    const url=new URL(req.url,'http://localhost');
    const courseId=url.searchParams.get('courseId');
@@ -168,7 +192,7 @@ http.createServer(async(req,res)=>{
  if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
 
  if(req.url!=='/api/deadlines'&&req.url!=='/api/course-mission'&&req.url!=='/api/course-investigation')return json(res,404,{error:'Not found'});
- if(!canvasOrigin||!token)return json(res,503,{error:'Set CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN in your terminal first.'});
+ if(!canvasApi)return json(res,503,{error:'Set CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN in your terminal first.'});
  try{
   const data=await loadCanvasDeadlines();
   if(req.url==='/api/course-mission')return json(res,200,{...buildCourseMission(data.assignments),canvas:{courses:data.courses,partial:data.partial,failedCourses:data.failedCourses,checkedAt:data.checkedAt}});
