@@ -10,7 +10,8 @@
     "api": "node server/index.js",
     "start:all": "node scripts/start-all.mjs",
     "test": "node --test tests/*.test.mjs",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "test:canvas-live": "node scripts/canvas-live-smoke.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
