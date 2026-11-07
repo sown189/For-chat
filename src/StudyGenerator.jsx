@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 function parseLines(raw){return raw.split(/\n+/).map(s=>s.trim()).filter(Boolean).slice(0,40)}
-function makeCards(lines){return lines.map((line,i)=>{const split=line.split(/\s+[-–:]\s+/);return {id:i,front:split.length>1?split[0]:'Explain concept '+(i+1),back:split.length>1?split.slice(1).join(' — '):line}})}
+function makeCards(lines){return lines.map((line,i)=>{const split=line.split(/\s+[-–—:]\s+/);return {id:i,front:split.length>1?split[0]:'Explain concept '+(i+1),back:split.length>1?split.slice(1).join(' — '):line}})}
 export default function StudyGenerator(){
  const [notes,setNotes]=useState('');
  const [cards,setCards]=useState([]);
