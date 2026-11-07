@@ -10,6 +10,7 @@ import * as computer from './computer.js';
 import http from 'node:http';
 import { URL } from 'node:url';
 const port=Number(process.env.API_PORT||8787);
+if(process.env.NODE_ENV==='production' && process.env.FINESSERS_ALLOW_LOCAL_BETA!=='true')throw Error('Public deployment blocked: Finessers requires user authentication, tenant isolation, and production security review. Run as local beta only.');
 let openaiKey='';
 let provider='openai';
 const ollamaUrl=process.env.OLLAMA_BASE_URL||'http://127.0.0.1:11434';
@@ -62,6 +63,7 @@ http.createServer(async(req,res)=>{
  const securityError=checkLocalRequest(req);
  if(securityError)return json(res,403,{error:securityError});
  if(!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
+ if(req.url==='/api/health'&&req.method==='GET')return json(res,200,{configured:!!canvasApi,mode:'local-beta',publicReady:false,authentication:false,canvasCredentialsConfigured:!!canvasApi});
  if(req.url.startsWith('/api/academic-agent/')){
   try{
    if(req.method!=='POST')return json(res,405,{error:'POST required'});
@@ -156,7 +158,7 @@ http.createServer(async(req,res)=>{
   }catch(e){return json(res,502,{error:'Could not read Canvas assignment: '+e.message})}
  }
  if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
- if(req.url==='/api/health')return json(res,200,{configured:!!(canvasOrigin&&token)});
+
  if(req.url!=='/api/deadlines'&&req.url!=='/api/course-mission'&&req.url!=='/api/course-investigation')return json(res,404,{error:'Not found'});
  if(!canvasOrigin||!token)return json(res,503,{error:'Set CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN in your terminal first.'});
  try{

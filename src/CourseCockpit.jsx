@@ -30,6 +30,8 @@ export default function CourseCockpit(){
  const [notice,setNotice]=useState('');
  const [syncing,setSyncing]=useState(false);
  const [canvasStatus,setCanvasStatus]=useState('');
+ const [canvasVerification,setCanvasVerification]=useState(null);
+ const [verifying,setVerifying]=useState(false);
  const [mission,setMission]=useState(null);
  const [missionBusy,setMissionBusy]=useState(false);
  const [assignmentGuide,setAssignmentGuide]=useState(null);
@@ -41,6 +43,12 @@ export default function CourseCockpit(){
  const upcoming=approved.filter(x=>!x.done&&x.due>=new Date().toISOString().slice(0,10)).slice(0,8);
  const nextWeek=upcoming.filter(x=>(new Date(x.due+'T12:00:00')-new Date())/86400000<=7);
  const importText=e=>{e.preventDefault();const found=extractDeadlines(source).map((x,i)=>({...x,id:Date.now()+'-'+i,course:course.trim()||'My course'}));setItems(prev=>[...prev,...found]);setNotice(found.length+' potential deadlines found. Review each one against your syllabus before approving.');};
+ const verifyCanvas=async()=>{
+  setVerifying(true);setCanvasVerification(null);
+  try{const response=await fetch('/api/canvas/verify');const data=await response.json();setCanvasVerification({ok:response.ok,...data})}
+  catch(e){setCanvasVerification({ok:false,error:'Backend unavailable: '+e.message})}
+  finally{setVerifying(false)}
+ };
  const investigateCourses=async()=>{
   setInvestigationBusy(true);setCanvasStatus('');setInvestigation(null);
   try{
@@ -76,7 +84,7 @@ export default function CourseCockpit(){
  const syncCanvas=async()=>{
   setSyncing(true);setCanvasStatus('');
   try{
-   const response=await fetch('http://127.0.0.1:8787/api/deadlines');
+   const response=await fetch('/api/deadlines');
    const data=await response.json();
    if(!response.ok)throw Error(data.error||'Canvas connection failed');
    const valid=(Array.isArray(data.assignments)?data.assignments:[]).filter(a=>a&&a.id&&a.dueAt&&a.title);
@@ -100,6 +108,8 @@ export default function CourseCockpit(){
   <p>Paste a syllabus or assignment list. Finessers detects dated lines and lets you verify each one before it enters your study plan. Everything stays in this browser.</p>
   <div className="note-card">
    <strong>CONNECT CANVAS ASSIGNMENTS</strong>
+   <p><button type="button" onClick={verifyCanvas} disabled={verifying}>{verifying?'CHECKING CANVAS…':'VERIFY LIVE CANVAS CONNECTION'}</button></p>
+   {canvasVerification&&<p role="status">{canvasVerification.ok?'CONNECTED: '+canvasVerification.courses+' courses, '+canvasVerification.upcomingAssignments+' upcoming assignments'+(canvasVerification.partial?' (partial results)':''):'NOT CONNECTED: '+canvasVerification.error}</p>}
    <p>Import upcoming assignment titles and due dates from your configured Canvas account. Nothing is submitted or modified in Canvas. Review every imported deadline before approving it.</p>
    <button type="button" onClick={investigateCourses} disabled={investigationBusy}>{investigationBusy?'INVESTIGATING COURSES…':'INVESTIGATE MY COURSES & TELL ME WHAT TO DO'}</button>
    <button type="button" onClick={runMission} disabled={missionBusy}>{missionBusy?'INVESTIGATING…':'FIND WHAT I NEED TO DO THIS WEEK'}</button>
