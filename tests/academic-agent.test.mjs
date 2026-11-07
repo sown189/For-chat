@@ -39,3 +39,16 @@ test('browser errors recover and retain tutoring response',async()=>{
  const result=await agent.approve(session.id,true);
  assert.equal(result.state,'completed');assert.match(result.error,/Login required/);assert.equal(result.answer,'Study the issue.');
 });
+
+test('concurrent approval attempts cannot execute the same browser action twice',async()=>{
+ let calls=0;
+ let release;
+ const gate=new Promise(resolve=>{release=resolve});
+ const agent=createAcademicAgent({loadAssignments:async()=>assignments,readAssignment:async()=>({id:34,name:'Case',description:'Explain the issue.',html_url:'https://canvas.example/a'}),reason:async()=> 'Review the issue.',openSource:async()=>{calls++;await gate;return {url:'https://canvas.example/a',title:'Case',text:'More details'}}});
+ const session=await agent.run('Study');
+ const first=agent.approve(session.id,true);
+ await assert.rejects(agent.approve(session.id,true),/No pending browser action/);
+ release();
+ await first;
+ assert.equal(calls,1);
+});
