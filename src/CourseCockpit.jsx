@@ -32,12 +32,24 @@ export default function CourseCockpit(){
  const [mission,setMission]=useState(null);
  const [missionBusy,setMissionBusy]=useState(false);
  const [assignmentGuide,setAssignmentGuide]=useState(null);
+ const [investigation,setInvestigation]=useState(null);
+ const [investigationBusy,setInvestigationBusy]=useState(false);
  const [guideBusy,setGuideBusy]=useState(false);
  useEffect(()=>localStorage.setItem(KEY,JSON.stringify(items)),[items]);
  const approved=useMemo(()=>items.filter(x=>x.approved).sort((a,b)=>a.due.localeCompare(b.due)),[items]);
  const upcoming=approved.filter(x=>!x.done&&x.due>=new Date().toISOString().slice(0,10)).slice(0,8);
  const nextWeek=upcoming.filter(x=>(new Date(x.due+'T12:00:00')-new Date())/86400000<=7);
  const importText=e=>{e.preventDefault();const found=extractDeadlines(source).map((x,i)=>({...x,id:Date.now()+'-'+i,course:course.trim()||'My course'}));setItems(prev=>[...prev,...found]);setNotice(found.length+' potential deadlines found. Review each one against your syllabus before approving.');};
+ const investigateCourses=async()=>{
+  setInvestigationBusy(true);setCanvasStatus('');setInvestigation(null);
+  try{
+   const response=await fetch('/api/course-investigation');
+   const data=await response.json();
+   if(!response.ok)throw Error(data.error||'Course investigation unavailable');
+   setInvestigation(data);
+  }catch(e){setCanvasStatus('Course investigation failed: '+e.message)}
+  finally{setInvestigationBusy(false)}
+ };
  const investigateAssignment=async(id)=>{
   const [courseId,assignmentId]=String(id).split('-');
   if(!courseId||!assignmentId){setCanvasStatus('Cannot identify Canvas assignment.');return}
@@ -87,8 +99,20 @@ export default function CourseCockpit(){
   <div className="note-card">
    <strong>CONNECT CANVAS ASSIGNMENTS</strong>
    <p>Import upcoming assignment titles and due dates from your configured Canvas account. Nothing is submitted or modified in Canvas. Review every imported deadline before approving it.</p>
+   <button type="button" onClick={investigateCourses} disabled={investigationBusy}>{investigationBusy?'INVESTIGATING COURSES…':'INVESTIGATE MY COURSES & TELL ME WHAT TO DO'}</button>
    <button type="button" onClick={runMission} disabled={missionBusy}>{missionBusy?'INVESTIGATING…':'FIND WHAT I NEED TO DO THIS WEEK'}</button>
    <button type="button" onClick={syncCanvas} disabled={syncing}>{syncing?'SYNCING…':'IMPORT FROM CANVAS'}</button>
+   {investigation&&<div className="note-card" aria-label="Course investigation report">
+    <h4>COURSE INVESTIGATION</h4>
+    <p>{investigation.mission.totalUpcoming} upcoming assignments · {investigation.reviewed} descriptions reviewed · {investigation.unavailable} unavailable</p>
+    <p><strong>Start here:</strong> {investigation.mission.nextAction}</p>
+    {investigation.investigations.map(item=><article key={item.task.id} className="note-card">
+     <strong>{item.task.title}</strong><p>{item.task.course} · {item.task.daysUntilDue} days remaining</p>
+     {item.guide?<><p><strong>Requirements found:</strong></p>{item.guide.requirements.slice(0,4).map((line,i)=><p key={i}>{line}</p>)}<p>{item.guide.nextAction}</p>{item.guide.sourceUrl&&<a href={item.guide.sourceUrl} target="_blank" rel="noopener noreferrer">VERIFY SOURCE</a>}</>:<p>Could not investigate: {item.error}</p>}
+    </article>)}
+    <p><small>{investigation.limitations}</small></p>
+    {investigation.canvas?.partial&&<p>Some Canvas courses could not be read; results are incomplete.</p>}
+   </div>}
    {mission&&<div className="note-card" aria-label="Course mission">
     <h4>YOUR COURSE MISSION</h4>
     <p>{mission.totalUpcoming} upcoming dated assignments · {mission.dueThisWeek} due within seven days</p>
