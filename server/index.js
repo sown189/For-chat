@@ -143,7 +143,7 @@ http.createServer(async(req,res)=>{
   if(!canvasApi)return json(res,503,{error:'Canvas credentials are not configured'});
   try{
    const params=new URL(req.url,'http://localhost').searchParams;
-   return json(res,200,await canvasNavigate(canvasApi,{view:params.get('view'),courseId:params.get('courseId'),assignmentId:params.get('assignmentId')}));
+   return json(res,200,await canvasNavigate(canvasApi,{view:params.get('view'),courseId:params.get('courseId'),assignmentId:params.get('assignmentId')},{baseUrl:canvasOrigin}));
   }catch(e){return json(res,400,{error:'Canvas navigation failed: '+e.message})}
  }
  if(req.method==='GET'&&req.url==='/api/canvas/verify'){
