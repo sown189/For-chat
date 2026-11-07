@@ -62,7 +62,7 @@ try{
   await page.getByRole('alert').filter({hasText:'valid http(s)'}).waitFor();
   await page.getByRole('textbox',{name:'Website address'}).fill('https://example.com/');
   await page.getByRole('button',{name:/^GO$/}).click();
-  await page.getByRole('tab',{name:/example\\.com/}).waitFor();
+  await page.getByRole('tab',{name:/example.com/}).waitFor();
  });
  await check('study generator creates and reveals a flashcard',async()=>{
   await page.getByRole('button',{name:'Study',exact:true}).first().click();
