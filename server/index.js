@@ -1,3 +1,4 @@
+import {assignmentContext,buildGroundedStudyGuide} from './course-context.js';
 import {buildCourseMission} from './course-mission.js';
 import * as operator from './operator.js';
 import * as computer from './computer.js';
@@ -93,6 +94,18 @@ http.createServer(async(req,res)=>{
    }
    return json(res,404,{error:'Unsupported AI route: '+req.url+'. Use Workspace → AI Operator for computer use.'});
   }catch(e){return json(res,500,{error:e.message})}
+ }
+ if(req.method==='GET'&&req.url.startsWith('/api/course-context?')){
+  if(!canvasOrigin||!token)return json(res,503,{error:'Configure Canvas on the backend first.'});
+  try{
+   const url=new URL(req.url,'http://localhost');
+   const courseId=url.searchParams.get('courseId');
+   const assignmentId=url.searchParams.get('assignmentId');
+   if(!/^\\d{1,16}$/.test(courseId||'')||!/^\\d{1,16}$/.test(assignmentId||''))return json(res,400,{error:'Numeric Canvas courseId and assignmentId are required'});
+   const raw=await canvas('/api/v1/courses/'+courseId+'/assignments/'+assignmentId);
+   const context=assignmentContext(raw,courseId);
+   return json(res,200,{context,guide:buildGroundedStudyGuide(context)});
+  }catch(e){return json(res,502,{error:'Could not read Canvas assignment: '+e.message})}
  }
  if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
  if(req.url==='/api/health')return json(res,200,{configured:!!(canvasOrigin&&token)});
