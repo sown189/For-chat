@@ -94,8 +94,8 @@ async function start(task,key,mode='openai'){
   await page.goto('https://www.google.com/',{waitUntil:'domcontentloaded',timeout:20000});
   const job={id:randomUUID(),key,mode,task,browser,page,createdAt:Date.now(),stepping:false,state:'running',screen:null,steps:[],pending:null,responseId:null,summary:null,error:null};
   jobs.set(job.id,job);job.screen=await snapshot(job);
-  return advance(job,[{role:'user',content:'Use the browser to accomplish this request: '+task+'. You may navigate to public websites. Do not purchase, submit forms, send messages, change account settings, or perform irreversible actions without explicit user confirmation. If a website requires login, ask the user to take over rather than requesting passwords.'}]);
- }catch(e){await browser.close();throw e}
+  return await advance(job,[{role:'user',content:'Use the browser to accomplish this request: '+task+'. You may navigate to public websites. Do not purchase, submit forms, send messages, change account settings, or perform irreversible actions without explicit user confirmation. If a website requires login, ask the user to take over rather than requesting passwords.'}]);
+ }catch(e){for(const [id,job] of jobs){if(job.browser===browser)jobs.delete(id)}await browser.close().catch(()=>{});throw e}
 }
 async function step(id,approve){
  await pruneJobs();
@@ -119,5 +119,6 @@ async function step(id,approve){
  }catch(e){job.state='error';job.error=e.message;return view(job)}finally{job.stepping=false}
 }
 async function status(id){await pruneJobs();const job=jobs.get(id);if(!job)throw Error('Session not found');job.screen=await snapshot(job);return view(job)}
+async function revokeOpenAIKey(){await Promise.all([...jobs].filter(([,job])=>job.mode==='openai').map(async([id,job])=>{jobs.delete(id);job.state='stopped';job.pending=null;job.key=null;await job.browser.close().catch(()=>{})}));}
 async function stop(id){await pruneJobs();const job=jobs.get(id);if(!job)return {id,state:'stopped'};job.state='stopped';job.pending=null;jobs.delete(id);await job.browser.close().catch(()=>{});return {id,state:'stopped'}}
-export {start,step,status,stop,assertReadOnlyRequest,validateComputerAction};
+export {start,step,status,stop,revokeOpenAIKey,assertReadOnlyRequest,validateComputerAction};
