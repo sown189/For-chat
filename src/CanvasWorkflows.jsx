@@ -1,0 +1,24 @@
+import React,{useEffect,useState} from 'react';
+import {CalendarDays,BookOpen,RefreshCw,ExternalLink,ChevronDown} from 'lucide-react';
+const formatDue=value=>{const date=new Date(value);return Number.isNaN(date.getTime())?'Unknown date':date.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})};
+function studyFromGuide(guide){
+ const requirements=Array.isArray(guide?.requirements)?guide.requirements.filter(Boolean):[];
+ return {summary:guide?.nextAction||'Read the assignment instructions and identify the key requirements.',cards:requirements.slice(0,8).map((r,i)=>({question:'What is requirement '+(i+1)+' for '+guide.title+'?',answer:r})),plan:[{title:'Understand',detail:'Read the source instructions and clarify the deliverable'},{title:'Practice',detail:'Use the requirement cards to check your understanding'},{title:'Review',detail:'Verify all requirements and deadlines in Canvas'}]};
+}
+export default function CanvasWorkflows({onShare}){
+ const [data,setData]=useState(null),[loading,setLoading]=useState(false),[error,setError]=useState(''),[selected,setSelected]=useState(null),[guide,setGuide]=useState(null),[detailBusy,setDetailBusy]=useState(false),[revealed,setRevealed]=useState([]),[share,setShare]=useState(false);
+ const refresh=async()=>{setLoading(true);setError('');try{const r=await fetch('/api/deadlines');const d=await r.json();if(!r.ok)throw Error(d.error||'Canvas unavailable');setData(d)}catch(e){setError(e.message)}finally{setLoading(false)}};
+ useEffect(()=>{refresh()},[]);
+ const inspect=async item=>{setSelected(item);setGuide(null);setRevealed([]);setDetailBusy(true);setError('');try{const [courseId,assignmentId]=String(item.id).split('-');if(!/^\d+$/.test(courseId)||!/^\d+$/.test(assignmentId))throw Error('Invalid Canvas assignment ID');const r=await fetch('/api/course-context?courseId='+encodeURIComponent(courseId)+'&assignmentId='+encodeURIComponent(assignmentId));const d=await r.json();if(!r.ok)throw Error(d.error||'Cannot read assignment');setGuide(d.guide)}catch(e){setError(e.message)}finally{setDetailBusy(false)}};
+ const study=studyFromGuide(guide);
+ const shareGuide=()=>{if(!share||!guide)return;onShare?.({kind:'assignment',title:guide.title||selected?.title,url:guide.sourceUrl||selected?.url||null,description:'Canvas assignment instructions shared with explicit consent',content:JSON.stringify({title:guide.title,requirements:guide.requirements,nextAction:guide.nextAction}).slice(0,9000)});};
+ return <section className="fx-canvas-workflows" aria-label="Canvas assignment workflows"><header><div><span className="fx-section-label">01 / COURSE INTELLIGENCE</span><h3><CalendarDays size={19}/> WHAT'S DUE NEXT</h3></div><button type="button" onClick={refresh} disabled={loading}><RefreshCw size={14}/>{loading?' SYNCING':' SYNC CANVAS'}</button></header>
+ <p>Read-only Canvas deadlines. Choose an assignment to build a grounded study workflow. No submissions or course changes.</p>
+ {error&&<p role="alert">{error}</p>}
+ {!data&&!loading&&!error&&<p>Connect Canvas to see upcoming assignments.</p>}
+ {data&&<><p role="status">{data.assignments?.length||0} dated assignments · {data.courses||0} courses {data.partial?'· Partial results':''}</p><div className="fx-deadline-list">{(data.assignments||[]).slice(0,6).map(a=><button type="button" key={a.id} className={selected?.id===a.id?'selected':''} onClick={()=>inspect(a)}><span><strong>{a.title}</strong><small>{a.course}</small></span><time>{formatDue(a.dueAt)}</time><ChevronDown size={15}/></button>)}</div>{!data.assignments?.length&&<p>No upcoming dated assignments were returned.</p>}</>}
+ {detailBusy&&<p role="status">Reading assignment instructions…</p>}
+ {guide&&<div className="fx-workflow-detail"><h4><BookOpen size={17}/> STUDY WORKFLOW · {guide.title}</h4><p><strong>YOUR NEXT MOVE:</strong> {study.summary}</p><div className="fx-workflow-plan">{study.plan.map((step,i)=><div key={step.title}><b>{i+1}. {step.title}</b><span>{step.detail}</span></div>)}</div><h5>REQUIREMENT PRACTICE CARDS</h5>{study.cards.length?study.cards.map((card,i)=><button className="fx-workflow-card" key={i} onClick={()=>setRevealed(old=>old.includes(i)?old.filter(x=>x!==i):[...old,i])}><strong>{card.question}</strong><span>{revealed.includes(i)?card.answer:'TAP TO REVEAL'}</span></button>):<p>No specific requirements were available; check the source before studying.</p>}
+ <label className="fx-workflow-share"><input type="checkbox" checked={share} onChange={e=>setShare(e.target.checked)}/> Allow sharing this assignment's requirements with Finessers AI</label><button type="button" onClick={shareGuide} disabled={!share}>SEND REQUIREMENTS TO AI SIDEBAR</button>{guide.sourceUrl&&<a href={guide.sourceUrl} target="_blank" rel="noopener noreferrer">VERIFY IN CANVAS <ExternalLink size={14}/></a>}</div>}
+ </section>;
+}
