@@ -10,11 +10,13 @@ async function pruneSessions(){
  await Promise.all([...sessions].filter(([,s])=>now-s.created>SESSION_TTL_MS).map(async([id,s])=>{sessions.delete(id);await s.browser.close().catch(()=>{})}));
 }
 const allowedProtocols = new Set(['https:', 'http:']);
+const READ_ONLY_METHODS=new Set(['GET','HEAD']);
 const BLOCKED_HOSTS = /^(?:0|0x[0-9a-f]+|0[0-7]+|169\.254\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|198\.18\.|198\.19\.|224\.|2(?:[3-4]\d|5[0-5])\.)/i;
 function checkUrl(raw) {
   const url = new URL(raw);
   if (!allowedProtocols.has(url.protocol)) throw Error('Only HTTP(S) pages are supported');
   if (url.username || url.password) throw Error('Credentials in URLs are not allowed');
+  if (url.port && !/^\d{1,5}$/.test(url.port)) throw Error('Invalid network port');
   if (BLOCKED_HOSTS.test(url.hostname)) throw Error('Reserved network targets are blocked');
   const host = url.hostname.toLowerCase();
   if (host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0' || host === '::1' ||
@@ -38,6 +40,7 @@ async function createSession(url, options={}) {
     await context.route('**/*', async route => {
       try {
         checkUrl(route.request().url());
+        if(!READ_ONLY_METHODS.has(route.request().method().toUpperCase()))throw Error('Read-only browser blocks non-GET network requests');
         if(permittedOrigin && route.request().isNavigationRequest() && new URL(route.request().url()).origin!==permittedOrigin)throw Error('Cross-origin navigation blocked');
         await route.continue();
       } catch {
@@ -45,10 +48,12 @@ async function createSession(url, options={}) {
       }
     });
     const page = await context.newPage();
+    page.on('popup',popup=>popup.close().catch(()=>{}));
     page.setDefaultTimeout(TIMEOUT_MS);
     await page.goto(checkUrl(url), {waitUntil: 'domcontentloaded', timeout: TIMEOUT_MS});
+    if(permittedOrigin && new URL(page.url()).origin!==permittedOrigin)throw Error('Browser left the approved origin');
     const id = randomUUID();
-    sessions.set(id, {browser, page, created: Date.now()});
+    sessions.set(id, {browser, page, created: Date.now(), permittedOrigin});
     return {id, ...await observe(id)};
   } catch (e) {
     await browser.close();
@@ -79,7 +84,9 @@ async function act(id, action) {
   if (!s) throw Error('Unknown browser session');
   if (!action || !['click', 'scroll', 'navigate'].includes(action.type)) throw Error('Unsupported action');
   if (action.type === 'navigate') {
-    await s.page.goto(checkUrl(action.url), {waitUntil: 'domcontentloaded'});
+    const destination=checkUrl(action.url);
+    if(s.permittedOrigin&&new URL(destination).origin!==s.permittedOrigin)throw Error('Navigation outside the approved origin is blocked');
+    await s.page.goto(destination, {waitUntil: 'domcontentloaded'});
   } else if (action.type === 'scroll') {
     const amount = Number(action.amount);
     if (!Number.isFinite(amount) || Math.abs(amount) > 2000) throw Error('Invalid scroll distance');
@@ -94,7 +101,8 @@ async function act(id, action) {
       if (tag !== 'a' || type === 'submit' || type === 'file') throw Error('Read-only mode allows navigation links only');
       const href=await target.getAttribute('href');
       if (!href) throw Error('Link has no destination');
-      checkUrl(new URL(href,s.page.url()).toString());
+      const destination=checkUrl(new URL(href,s.page.url()).toString());
+      if(s.permittedOrigin&&new URL(destination).origin!==s.permittedOrigin)throw Error('Link outside the approved origin is blocked');
       await target.click();
     } else {
       throw Error('Read-only mode blocks form interaction');
