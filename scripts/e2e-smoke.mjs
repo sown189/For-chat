@@ -88,6 +88,30 @@ try{
   assert.ok([200,503].includes(r.status));
   if(r.status===503)await page.getByRole('alert').filter({hasText:'Canvas'}).waitFor();
  });
+ await check('Canvas course, module, page and assignment UI with mocked Canvas',async()=>{
+  await page.route('**/api/canvas/navigate?*',async route=>{
+   const u=new URL(route.request().url());const view=u.searchParams.get('view');
+   const fixtures={
+    courses:{view:'courses',items:[{id:'42',title:'Demo Course',code:'DEMO 101'}]},
+    assignments:{view:'assignments',courseId:'42',items:[{id:'9',title:'Demo Assignment',dueAt:null,description:'Practice',points:10}]},
+    assignment:{view:'assignment',courseId:'42',assignment:{id:'9',title:'Demo Assignment',dueAt:null,description:'Practice these concepts',points:10}},
+    modules:{view:'modules',courseId:'42',items:[{id:'7',title:'Week One',itemsCount:1}]},
+    'module-items':{view:'module-items',courseId:'42',moduleId:'7',items:[{id:'8',title:'Reading',type:'Page',pageUrl:'reading'}]},
+    pages:{view:'pages',courseId:'42',items:[{title:'Reading',pageUrl:'reading'}]},
+    page:{view:'page',courseId:'42',page:{title:'Reading',body:'Study the material'}}
+   };
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(fixtures[view]||{})});
+  });
+  await page.getByRole('button',{name:'REFRESH',exact:true}).click();
+  await page.getByRole('button',{name:/Demo Course/}).click();
+  await page.getByRole('button',{name:/Demo Assignment/}).click();
+  await page.getByText('Practice these concepts').waitFor();
+  await page.getByRole('button',{name:'MODULES'}).click();
+  await page.getByRole('button',{name:/Week One/}).click();
+  await page.getByRole('button',{name:/Reading/}).click();
+  await page.getByText('Study the material').waitFor();
+  await page.unroute('**/api/canvas/navigate?*');
+ });
  await context.close();
 }finally{await browser.close()}
 console.log('\nE2E checks: '+results.filter(x=>x.ok).length+'/'+results.length+' passed');
