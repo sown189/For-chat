@@ -34,7 +34,7 @@ try{
  await check('unified browser displays Canvas tab and AI copilot',async()=>{
   await page.getByRole('tab',{name:'Canvas Live'}).waitFor();
   await page.getByRole('complementary',{name:'Finessers AI sidebar'}).waitFor();
-  assert.equal(await page.getByText('Page contents aren\'t shared automatically.').count(),1);
+  assert.equal(await page.getByText(/Page contents aren't shared automatically/).count(),1);
  });
  await check('AI tab metadata is opt-in',async()=>{
   const sidebar=page.getByRole('complementary',{name:'Finessers AI sidebar'});
@@ -54,6 +54,21 @@ try{
   await sidebar.getByRole('button',{name:'EXPLAIN'}).click();
   await sidebar.getByText('Mock study guidance from test provider.').waitFor();
   await page.unroute('**/api/agent/plan');
+ });
+ await check('Canvas workflow builds practice cards and shares only after consent',async()=>{
+  await page.route('**/api/deadlines',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({courses:1,assignments:[{id:'101-202',course:'Mock Criminal Justice',title:'Mock Assignment',dueAt:'2026-12-01T20:00:00Z'}]})}));
+  await page.route('**/api/course-context?*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({guide:{title:'Mock Assignment',requirements:['Explain the Sixth Amendment'],nextAction:'Review the lecture notes',sourceUrl:'https://canvas.instructure.com/courses/101/assignments/202'}})}));
+  await page.getByRole('button',{name:'SYNC CANVAS'}).click();
+  await page.getByRole('button',{name:/Mock Assignment/}).click();
+  await page.getByText('Explain the Sixth Amendment').first().waitFor();
+  const send=page.getByRole('button',{name:'SEND REQUIREMENTS TO AI SIDEBAR'});
+  assert.equal(await send.isDisabled(),true);
+  await page.getByRole('checkbox',{name:/Allow sharing this assignment/}).check();
+  await send.click();
+  await page.getByText('SHARED ASSIGNMENT').waitFor();
+  await page.getByRole('button',{name:'REMOVE SHARED CONTENT'}).click();
+  await page.unroute('**/api/deadlines');
+  await page.unroute('**/api/course-context?*');
  });
  await check('new website tab and address validation',async()=>{
   await page.getByRole('button',{name:/NEW TAB/i}).click();
