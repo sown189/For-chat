@@ -1,3 +1,4 @@
+import {validateCanvasSource} from './canvas-source.js';
 import {createAcademicAgent} from './academic-agent.js';
 import {investigateCourseMission} from './course-investigation.js';
 import {assignmentContext,buildGroundedStudyGuide} from './course-context.js';
@@ -48,7 +49,8 @@ const academicAgent=createAcademicAgent({
   return provider==='ollama'?data.message?.content:data.choices?.[0]?.message?.content;
  },
  openSource:async url=>{
-  const session=await operator.createSession(url);
+  const verifiedUrl=validateCanvasSource(url,canvasOrigin);
+  const session=await operator.createSession(verifiedUrl);
   try{return {title:session.title,url:session.url,text:session.text}}
   finally{await operator.close(session.id)}
  }
