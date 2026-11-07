@@ -66,7 +66,7 @@ async function observe(id) {
 async function act(id, action) {
   const s = sessions.get(id);
   if (!s) throw Error('Unknown browser session');
-  if (!action || !['click', 'fill', 'select', 'scroll', 'navigate'].includes(action.type)) throw Error('Unsupported action');
+  if (!action || !['click', 'scroll', 'navigate'].includes(action.type)) throw Error('Unsupported action');
   if (action.type === 'navigate') {
     await s.page.goto(checkUrl(action.url), {waitUntil: 'domcontentloaded'});
   } else if (action.type === 'scroll') {
