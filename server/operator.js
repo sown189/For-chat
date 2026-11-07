@@ -4,6 +4,11 @@ import { randomUUID } from 'node:crypto';
 const sessions = new Map();
 const MAX_SESSIONS = 3;
 const TIMEOUT_MS = 15000;
+const SESSION_TTL_MS = 15*60*1000;
+async function pruneSessions(){
+ const now=Date.now();
+ await Promise.all([...sessions].filter(([,s])=>now-s.created>SESSION_TTL_MS).map(async([id,s])=>{sessions.delete(id);await s.browser.close().catch(()=>{})}));
+}
 const allowedProtocols = new Set(['https:', 'http:']);
 const BLOCKED_HOSTS = /^(?:0|0x[0-9a-f]+|0[0-7]+|169\.254\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|198\.18\.|198\.19\.|224\.|2(?:[3-4]\d|5[0-5])\.)/i;
 function checkUrl(raw) {
@@ -25,6 +30,7 @@ function publicSnapshot(page) {
 async function createSession(url, options={}) {
   const permittedOrigin=options.allowedOrigin ? new URL(options.allowedOrigin).origin : null;
   if(permittedOrigin && new URL(url).origin!==permittedOrigin)throw Error('Browser destination is outside allowed origin');
+  await pruneSessions();
   if (sessions.size >= MAX_SESSIONS) throw Error('Session limit reached; close an existing session');
   const browser = await chromium.launch({headless: true});
   try {
@@ -50,6 +56,7 @@ async function createSession(url, options={}) {
   }
 }
 async function observe(id) {
+  await pruneSessions();
   const s = sessions.get(id);
   if (!s) throw Error('Unknown browser session');
   return {
@@ -67,6 +74,7 @@ async function observe(id) {
   };
 }
 async function act(id, action) {
+  await pruneSessions();
   const s = sessions.get(id);
   if (!s) throw Error('Unknown browser session');
   if (!action || !['click', 'scroll', 'navigate'].includes(action.type)) throw Error('Unsupported action');
@@ -95,6 +103,7 @@ async function act(id, action) {
   return observe(id);
 }
 async function screenshot(id) {
+ await pruneSessions();
  const s=sessions.get(id);
  if(!s) throw Error('Unknown browser session');
  return {id,image:'data:image/jpeg;base64,'+(await s.page.screenshot({type:'jpeg',quality:65})).toString('base64')};
