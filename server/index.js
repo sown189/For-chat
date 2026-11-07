@@ -136,6 +136,13 @@ http.createServer(async(req,res)=>{
    return json(res,404,{error:'Unsupported AI route: '+req.url+'. Use Workspace → AI Operator for computer use.'});
   }catch(e){return json(res,500,{error:e.message})}
  }
+ if(req.method==='GET'&&req.url==='/api/canvas/verify'){
+  if(!canvasApi)return json(res,503,{connected:false,error:'Canvas credentials are not configured'});
+  try{
+   const data=await loadCanvasDeadlines();
+   return json(res,200,{connected:true,courses:data.courses,upcomingAssignments:data.assignments.length,partial:data.partial,failedCourses:data.failedCourses,checkedAt:data.checkedAt,liveCanvasRead:true});
+  }catch(e){return json(res,502,{connected:false,error:'Canvas verification failed: '+String(e.message||e)})}
+ }
  if(req.method==='GET'&&req.url.startsWith('/api/course-context?')){
   if(!canvasOrigin||!token)return json(res,503,{error:'Configure Canvas on the backend first.'});
   try{
