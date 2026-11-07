@@ -17,7 +17,7 @@ test('unified agent plans, observes, reasons and waits for browser approval',asy
  assert.match(session.answer,/Practice/);
  const finished=await agent.approve(session.id,true);
  assert.equal(finished.state,'completed');
- assert.deepEqual(calls,['load','read','reason','browse']);
+ assert.deepEqual(calls,['load','read','reason','browse','reason']);
  assert.ok(finished.events.some(e=>e.type==='browser-observe'));
 });
 test('declined browser action never navigates',async()=>{
