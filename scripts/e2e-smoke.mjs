@@ -148,6 +148,7 @@ try{
   await radar.getByText('Demo Due Assignment').waitFor();
   await radar.getByRole('button',{name:'STUDY'}).click();
   await page.getByRole('heading',{name:'STUDY GENERATOR'}).waitFor();
+  await page.getByText('Voir dire',{exact:true}).first().click();
   await page.getByText('Jury selection questioning',{exact:true}).first().waitFor();
   await page.unroute('**/api/course-mission');
   await page.unroute('**/api/course-context?*');
