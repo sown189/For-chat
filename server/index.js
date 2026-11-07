@@ -66,7 +66,8 @@ const academicAgent=createAcademicAgent({
  }
 });
 http.createServer(async(req,res)=>{
- const securityError=checkLocalRequest(req);
+ const oauthCallback=req.method==='GET'&&req.url.startsWith('/api/canvas/oauth/callback?');
+ const securityError=oauthCallback?null:checkLocalRequest(req);
  if(securityError)return json(res,403,{error:securityError});
  if(!req.url.startsWith('/api/'))return json(res,404,{error:'Not found'});
  if(req.url==='/api/canvas/oauth/status'&&req.method==='GET')return json(res,200,{available:!!canvasOAuth,...(canvasOAuth?.status()||{connected:false}),legacyTokenConfigured:!!token});
@@ -163,7 +164,7 @@ http.createServer(async(req,res)=>{
   }catch(e){return json(res,500,{error:e.message})}
  }
  if(req.method==='GET'&&req.url.startsWith('/api/canvas/navigate?')){
-  if(!canvasApi)return json(res,503,{error:'Canvas credentials are not configured'});
+  if(!canvasApi||(!token&&!canvasOAuth?.status().connected))return json(res,503,{error:'Canvas is not connected'});
   try{
    const params=new URL(req.url,'http://localhost').searchParams;
    return json(res,200,await canvasNavigate(canvasApi,{view:params.get('view'),courseId:params.get('courseId'),assignmentId:params.get('assignmentId')},{baseUrl:canvasOrigin}));
