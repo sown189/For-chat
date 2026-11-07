@@ -1,26 +1,43 @@
 import CanvasConnection from './CanvasConnection.jsx';
 import React,{useEffect,useState} from 'react';
-const fetchView=async(view,courseId,assignmentId,signal)=>{
- const q=new URLSearchParams({view});
- if(courseId)q.set('courseId',courseId);
- if(assignmentId)q.set('assignmentId',assignmentId);
+async function fetchView(location,signal){
+ const q=new URLSearchParams(location);
  const response=await fetch('/api/canvas/navigate?'+q,{signal});
  const body=await response.json();
  if(!response.ok)throw Error(body.error||'Canvas navigation failed');
  return body;
-};
+}
+const date=value=>value?new Date(value).toLocaleString():'No due date';
 export default function CanvasBrowser(){
  const [location,setLocation]=useState({view:'courses'});
  const [data,setData]=useState(null);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(true);
  const [revision,setRevision]=useState(0);
+ const [section,setSection]=useState('assignments');
  useEffect(()=>{
   const controller=new AbortController();
   setLoading(true);setError('');setData(null);
-  fetchView(location.view,location.courseId,location.assignmentId,controller.signal).then(setData).catch(e=>{if(e.name!=='AbortError')setError(e.message)}).finally(()=>{if(!controller.signal.aborted)setLoading(false)});
+  fetchView(location,controller.signal).then(setData).catch(e=>{if(e.name!=='AbortError')setError(e.message)}).finally(()=>{if(!controller.signal.aborted)setLoading(false)});
   return ()=>controller.abort();
  },[location,revision]);
- const navigate=(view,courseId,assignmentId)=>setLocation({view,courseId,assignmentId});
- return <section className="fx-canvas-browser" aria-label="Authenticated Canvas navigator"><CanvasConnection onConnected={()=>setRevision(x=>x+1)}/><div className="fx-canvas-browser-head"><div><strong>CANVAS · AUTHENTICATED API</strong><p>Browse your connected Canvas courses and assignment instructions without sharing your Canvas password with the AI browser.</p></div><button onClick={()=>setRevision(x=>x+1)}>REFRESH</button></div><div className="fx-canvas-breadcrumb"><button onClick={()=>navigate('courses')}>COURSES</button>{location.courseId&&<><span> / </span><button onClick={()=>navigate('assignments',location.courseId)}>ASSIGNMENTS</button></>}{location.assignmentId&&<span> / DETAILS</span>}</div>{loading&&<p role="status">Loading live Canvas information…</p>}{error&&<p role="alert">{error} — Check CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN on your local backend.</p>}{data?.view==='courses'&&<div className="fx-canvas-items">{data.items.map(course=><button key={course.id} onClick={()=>navigate('assignments',course.id)}><strong>{course.title}</strong><span>{course.code||'VIEW ASSIGNMENTS'} →</span></button>)}{!data.items.length&&<p>No active courses were returned by Canvas.</p>}</div>}{data?.view==='assignments'&&<div className="fx-canvas-items">{data.items.map(item=><button key={item.id} onClick={()=>navigate('assignment',data.courseId,item.id)}><strong>{item.title}</strong><span>{item.dueAt?'DUE '+new Date(item.dueAt).toLocaleString():'NO DUE DATE'} →</span></button>)}{!data.items.length&&<p>No assignments returned for this course.</p>}</div>}{data?.view==='assignment'&&<article className="fx-canvas-detail"><h3>{data.assignment.title}</h3><p>{data.assignment.dueAt?'Due '+new Date(data.assignment.dueAt).toLocaleString():'No due date listed'}</p><p>Points: {data.assignment.points??'Not specified'}</p><h4>INSTRUCTIONS</h4><p className="fx-canvas-description">{data.assignment.description||'No instructions provided.'}</p>{data.assignment.htmlUrl&&<a href={data.assignment.htmlUrl} target="_blank" rel="noopener noreferrer">OPEN ORIGINAL ASSIGNMENT ↗</a>}</article>}</section>;
+ const navigate=(view,extra={})=>setLocation({view,...extra});
+ const courseId=location.courseId;
+ const sectionView=(next)=>{setSection(next);navigate(next,{courseId})};
+ const cards=(items,handler,subtitle)=><div className="fx-canvas-items">{items.map((item,i)=><button key={item.id||item.pageUrl||i} onClick={()=>handler(item)}><strong>{item.title}</strong><span>{subtitle(item)}</span></button>)}{!items.length&&<p>No items were returned for this section.</p>}</div>;
+ return <section className="fx-canvas-browser" aria-label="Authenticated Canvas navigator">
+  <CanvasConnection onConnected={()=>setRevision(x=>x+1)}/>
+  <div className="fx-canvas-browser-head"><div><strong>CANVAS · AUTHENTICATED API</strong><p>Read connected courses, modules, pages and assignment instructions. Your Canvas credentials remain on the local backend.</p></div><button onClick={()=>setRevision(x=>x+1)}>REFRESH</button></div>
+  <div className="fx-canvas-breadcrumb"><button onClick={()=>navigate('courses')}>COURSES</button>{courseId&&<><span> / </span><button onClick={()=>navigate(section,{courseId})}>COURSE {courseId}</button></>}{location.moduleId&&<><span> / </span><button onClick={()=>navigate('module-items',{courseId,moduleId:location.moduleId})}>MODULE</button></>}{location.view==='page'||location.view==='assignment'?<span> / DETAILS</span>:null}</div>
+  {courseId&&<div className="fx-inline-form" role="group" aria-label="Course sections">{['assignments','modules','pages'].map(view=><button key={view} aria-pressed={section===view} onClick={()=>sectionView(view)}>{view.toUpperCase()}</button>)}</div>}
+  {loading&&<p role="status">Loading Canvas…</p>}
+  {error&&<p role="alert">{error}. Check your Canvas connection and try again.</p>}
+  {data?.view==='courses'&&cards(data.items,item=>{setSection('assignments');navigate('assignments',{courseId:item.id})},item=>item.code||'VIEW COURSE')}
+  {data?.view==='assignments'&&cards(data.items,item=>navigate('assignment',{courseId,assignmentId:item.id}),item=>'DUE '+date(item.dueAt))}
+  {data?.view==='modules'&&cards(data.items,item=>navigate('module-items',{courseId,moduleId:item.id}),item=>(item.itemsCount??'?')+' ITEMS')}
+  {data?.view==='module-items'&&cards(data.items,item=>{if(item.type==='Assignment'&&item.assignmentId)navigate('assignment',{courseId,assignmentId:item.assignmentId});else if(item.type==='Page'&&item.pageUrl)navigate('page',{courseId,pageUrl:item.pageUrl});else if(item.htmlUrl)window.open(item.htmlUrl,'_blank','noopener,noreferrer');else setError('This module item type is not available in the read-only navigator.')},item=>item.type||'ITEM')}
+  {data?.view==='pages'&&cards(data.items,item=>navigate('page',{courseId,pageUrl:item.pageUrl}),()=> 'READ PAGE')}
+  {data?.view==='assignment'&&<article className="fx-canvas-detail"><h3>{data.assignment.title}</h3><p>Due: {date(data.assignment.dueAt)}</p><p>Points: {data.assignment.points??'Not specified'}</p><h4>INSTRUCTIONS</h4><p className="fx-canvas-description">{data.assignment.description||'No instructions provided.'}</p>{data.assignment.htmlUrl&&<a href={data.assignment.htmlUrl} target="_blank" rel="noopener noreferrer">OPEN ORIGINAL ASSIGNMENT ↗</a>}</article>}
+  {data?.view==='page'&&<article className="fx-canvas-detail"><h3>{data.page.title}</h3><p className="fx-canvas-description">{data.page.body||'This page has no text content.'}</p>{data.page.htmlUrl&&<a href={data.page.htmlUrl} target="_blank" rel="noopener noreferrer">OPEN ORIGINAL PAGE ↗</a>}</article>}
+ </section>;
 }
