@@ -50,7 +50,7 @@ const academicAgent=createAcademicAgent({
  },
  openSource:async url=>{
   const verifiedUrl=validateCanvasSource(url,canvasOrigin);
-  const session=await operator.createSession(verifiedUrl);
+  const session=await operator.createSession(verifiedUrl,{allowedOrigin:new URL(verifiedUrl).origin});
   try{
    if(new URL(session.url).origin!==new URL(verifiedUrl).origin)throw Error('Browser redirected away from the Canvas origin');
    if(/\/login(?:\/|$)/i.test(new URL(session.url).pathname)||/\b(sign in|log in to canvas|authentication required)\b/i.test(String(session.title||'')))throw Error('Canvas browser requires an authenticated session; API assignment data remains available');
