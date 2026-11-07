@@ -38,3 +38,37 @@
 .fx-beta-pill{background:#242c1e;border-color:#5a703c}
 .fx-app button:focus-visible,.fx-landing button:focus-visible{outline:2px solid #c4ff00;outline-offset:3px}
 @media(prefers-reduced-motion:reduce){.fx-app *,.fx-landing *{transition:none!important;scroll-behavior:auto!important}}
+
+
+/* Brand artwork on the quieter workspace pages, never over graffiti-heavy hero art.
+   Place the supplied optimized artwork at public/finessers-background.webp. */
+.fx-app .fx-main{
+  position:relative;
+  isolation:isolate;
+  background:#0d0f0d;
+}
+.fx-app .fx-main::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(8,10,8,.84),rgba(8,10,8,.91) 48%,rgba(8,10,8,.97)),
+    url('/For-chat/finessers-background.webp') center 10% / min(100%,1300px) auto no-repeat;
+  opacity:1;
+}
+.fx-app .fx-main .fx-workspace-title,
+.fx-app .fx-main .fx-browser-layout,
+.fx-app .fx-main .fx-tool-surface,
+.fx-app .fx-main .fx-chat-layout,
+.fx-app .fx-main .fx-study-grid{
+  position:relative;
+}
+@media(max-width:700px){
+ .fx-app .fx-main::before{
+   background:
+    linear-gradient(180deg,rgba(8,10,8,.89),rgba(8,10,8,.95) 42%,#080a08),
+    url('/For-chat/finessers-background.webp') center 30px / 100% auto no-repeat;
+ }
+}
