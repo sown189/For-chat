@@ -5,13 +5,14 @@ const KEY='finessers.tabs.v1';
 const defaults=[{id:'canvas',title:'Canvas Live',url:'finessers://canvas'}];
 function load(){try{const a=JSON.parse(localStorage.getItem(KEY)||'null');if(!Array.isArray(a))return defaults;const valid=a.slice(0,12).filter(t=>t&&typeof t.id==='string'&&typeof t.title==='string'&&typeof t.url==='string'&&(t.id==='canvas'||/^https?:\/\//i.test(t.url))).map(t=>({id:t.id.slice(0,80),title:t.title.slice(0,100),url:t.url}));return valid.length?valid:defaults}catch{return defaults}}
 function safe(raw){try{const u=new URL(raw);if(!['https:','http:'].includes(u.protocol)||u.username||u.password)throw Error();return u.toString()}catch{throw Error('Enter a valid http(s) website address')}}
-export default function BrowserTabs(){
+export default function BrowserTabs({onContextChange}){
  const [tabs,setTabs]=useState(()=>{const items=load();return items.some(t=>t.id==='canvas')?items:[defaults[0],...items]});
  const [active,setActive]=useState(tabs[0].id);
  const [url,setUrl]=useState('');
  const [error,setError]=useState('');
  useEffect(()=>localStorage.setItem(KEY,JSON.stringify(tabs)),[tabs]);
  const current=tabs.find(t=>t.id===active)||tabs[0];
+ useEffect(()=>{onContextChange?.({kind:current?.id==='canvas'?'canvas':'website',title:current?.title||'Browser',url:current?.id==='canvas'?null:current?.url||null,description:current?.id==='canvas'?'Canvas course navigation. Assignment text is not automatically shared with the AI.':'Read-only browser preview. Page content is not automatically shared with the AI.'})},[current?.id,current?.title,current?.url,onContextChange]);
  const add=()=>{if(tabs.length>=12){setError('Maximum 12 tabs. Close one before opening another.');return}setError('');const t={id:crypto.randomUUID(),title:'New tab',url:'https://canvas.instructure.com/'};setTabs(a=>[...a,t]);setActive(t.id)};
  const navigate=e=>{e.preventDefault();try{const next=safe(url);setTabs(a=>a.map(t=>t.id===active?{...t,url:next,title:new URL(next).hostname}:t));setError('');setUrl('')}catch(e){setError(e.message)}};
  const close=id=>{if(id==='canvas'||tabs.length===1)return;const next=tabs.filter(t=>t.id!==id);setTabs(next);if(active===id)setActive(next[0].id)};
