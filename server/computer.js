@@ -4,6 +4,7 @@ import {checkUrl,verifyPublicUrl} from './operator.js';
 import {VIEWPORT,authorizeReadOnlyRequest,validateProposedAction,authorizeAction} from './computer-policy.js';
 import {captureBrowserObservation} from './computer-observation.js';
 import {buildComputerRequest,parseComputerCall,computerCallOutput,browserBarrier,redactedHistoryDetail,authorizeHumanResume} from './computer-agent-flow.js';
+import {isUnsafeClickTarget,isSafeSearchEnter} from './computer-safe-interaction.js';
 
 const jobs=new Map();
 const W=VIEWPORT.width,H=VIEWPORT.height;
@@ -34,15 +35,42 @@ async function callOpenAI(job,input,previous_response_id){
  const d=await r.json();if(!r.ok)throw Error(d.error?.message||'OpenAI computer-use request failed. Check computer tool access and billing.');return d;
 }
 const validateComputerAction=validateProposedAction;
+async function clickTarget(page,a){
+ return page.evaluate(({x,y})=>{
+  const el=document.elementFromPoint(x,y)?.closest('a,button,input,[role="button"]');
+  if(!el)return null;
+  return {tag:el.tagName.toLowerCase(),type:el.getAttribute('type')||'',label:(el.innerText||el.getAttribute('aria-label')||el.getAttribute('title')||'').slice(0,160),href:el.getAttribute('href')||'',inForm:!!el.closest('form')};
+ },{x:a.x,y:a.y});
+}
+async function guardedClick(page,a,double=false){
+ const target=await clickTarget(page,a);
+ if(isUnsafeClickTarget(target))throw Error('Read-only mode refused a potentially consequential control');
+ if(target?.href){const dest=new URL(target.href,page.url()).href;await verifyPublicUrl(dest)}
+ if(double)await page.mouse.dblclick(a.x,a.y);else await page.mouse.click(a.x,a.y,{button:a.button||'left'});
+}
+async function guardedKeys(page,keys){
+ const upper=keys.map(k=>k.toUpperCase());
+ if(upper.includes('ENTER')||upper.includes('RETURN')){
+  if(upper.length!==1)throw Error('Enter cannot be combined with other keys in read-only mode');
+  const field=await page.evaluate(()=>{
+   const el=document.activeElement;
+   if(!el)return null;
+   return {tag:el.tagName.toLowerCase(),type:el.getAttribute('type')||'text',label:[el.getAttribute('aria-label'),el.getAttribute('placeholder'),el.getAttribute('name'),el.getAttribute('id'),el.closest('form')?.getAttribute('role')].filter(Boolean).join(' '),formMethod:el.closest('form')?.getAttribute('method')||'get'};
+  });
+  if(!isSafeSearchEnter(field))throw Error('Enter is allowed only in a GET search field');
+ }
+ const names={META:'Meta',CTRL:'Control',ALT:'Alt',SHIFT:'Shift',ENTER:'Enter',RETURN:'Enter',ESC:'Escape',ESCAPE:'Escape',ARROWUP:'ArrowUp',ARROWDOWN:'ArrowDown',ARROWLEFT:'ArrowLeft',ARROWRIGHT:'ArrowRight',PAGEUP:'PageUp',PAGEDOWN:'PageDown',BACKSPACE:'Backspace',DELETE:'Delete',HOME:'Home',END:'End',TAB:'Tab'};
+ await page.keyboard.press(upper.map(k=>names[k]||k).join('+'));
+}
 async function execute(job,a){
  // Execution receives an authorized immutable copy, never a raw model proposal.
  validateComputerAction(a);
  const p=job.page;switch(a.type){
- case 'click':await p.mouse.click(a.x,a.y,{button:a.button||'left'});break;
- case 'double_click':await p.mouse.dblclick(a.x,a.y);break;
+ case 'click':await guardedClick(p,a);break;
+ case 'double_click':await guardedClick(p,a,true);break;
  case 'scroll':await p.mouse.wheel(a.scroll_x||0,a.scroll_y||0);break;
  case 'type':if(await p.evaluate(()=>document.activeElement?.getAttribute('type')==='password').catch(()=>false))throw Error('Computer-use cannot type into password fields');await p.keyboard.type(String(a.text||'').slice(0,3000));break;
- case 'keypress':for(const k of a.keys||[])await p.keyboard.press(k==='META'?'Meta':k==='CTRL'?'Control':k);break;
+ case 'keypress':await guardedKeys(p,a.keys||[]);break;
  case 'move':await p.mouse.move(a.x,a.y);break;
  case 'drag':if(!Array.isArray(a.path)||!a.path.length)throw Error('Invalid drag');await p.mouse.move(a.path[0].x,a.path[0].y);await p.mouse.down();for(const q of a.path.slice(1))await p.mouse.move(q.x,q.y);await p.mouse.up();break;
  case 'wait':await p.waitForTimeout(a.ms??1500);break;
