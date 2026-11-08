@@ -67,6 +67,6 @@ export default function ComputerUse({seed}){
   {job?.id&&['completed','error','stopped','blocked'].includes(job.state)&&<button type="button" onClick={stop}>NEW TASK</button>}
   {job?.summary&&<p className="computer-use-result">{job.summary}</p>}
   {(error||job?.error)&&<p className="computer-use-error" role="alert">{error||job.error}</p>}
-  {job?.id&&<section className="computer-use-history" aria-label="Computer action timeline"><h3>ACTION TIMELINE · {job.steps?.length||0} APPROVED STEPS</h3>{!job.steps?.length&&<p>No browser actions have been approved yet.</p>}{job.steps?.map((s,i)=><p key={i}><span>{String(i+1).padStart(2,'0')}</span> {s.label} {s.detail}{s.url&&<small className="computer-use-action-url"> · {s.url}</small>}</p>)}</section>}
+  {job?.id&&<section className="computer-use-history" aria-label="Computer action timeline"><h3>ACTION TIMELINE · {job.steps?.length||0} APPROVED STEPS</h3><p className="computer-use-budget" role="status">{job.remainingActions??Math.max(0,40-(job.steps?.length||0))} of 40 safe actions remaining in this session</p>{!job.steps?.length&&<p>No browser actions have been approved yet.</p>}{job.steps?.map((s,i)=><p key={i}><span>{String(i+1).padStart(2,'0')}</span> {s.label} {s.detail}{s.url&&<small className="computer-use-action-url"> · {s.url}</small>}</p>)}</section>}
  </section>
 }
