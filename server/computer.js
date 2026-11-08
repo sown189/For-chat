@@ -109,6 +109,8 @@ async function step(id,approve){
   await execute(job,authorized);
   job.steps.push({label:authorized.type,detail:redactedHistoryDetail(authorized),url:job.page.url()});
   job.screen=await snapshot(job);
+  const barrier=await inspectBarrier(job);
+  if(barrier){job.barrier=barrier;job.state='blocked';job.batch=null;job.summary=barrier.message;return view(job)}
   if(job.mode==='openai'&&job.batch){
    job.batch.index++;
    if(job.batch.index<job.batch.actions.length){
