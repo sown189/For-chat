@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {COMPUTER_MODEL,MAX_BATCH_ACTIONS,buildComputerRequest,parseComputerCall,computerCallOutput,browserBarrier,redactedHistoryDetail} from '../server/computer-agent-flow.js';
+import {COMPUTER_MODEL,MAX_BATCH_ACTIONS,buildComputerRequest,parseComputerCall,computerCallOutput,browserBarrier,redactedHistoryDetail,authorizeHumanResume} from '../server/computer-agent-flow.js';
 import {validateProposedAction} from '../server/computer-policy.js';
 
 test('GA computer protocol uses the current tool rather than the retired preview',()=>{
@@ -37,4 +37,11 @@ test('typing content is not copied into action history and excessive waits are b
  assert.equal(redactedHistoryDetail({type:'type',text:'sensitive school answer'}),'[text hidden]');
  assert.equal(validateProposedAction({type:'wait'}).type,'wait');
  assert.throws(()=>validateProposedAction({type:'wait',ms:10000}),/Wait action/);
+});
+
+test('human login takeover only resumes at the configured Canvas origin',()=>{
+ assert.equal(authorizeHumanResume('https://fau.instructure.com/courses/123','https://fau.instructure.com'),true);
+ assert.throws(()=>authorizeHumanResume('https://other.school.edu/courses/123','https://fau.instructure.com'),/return to the Canvas page/);
+ assert.throws(()=>authorizeHumanResume('https://fau.instructure.com/courses/123',null),/CANVAS_BASE_URL/);
+ assert.throws(()=>authorizeHumanResume('https://fau.instructure.com/login','https://fau.instructure.com',browserBarrier({url:'https://fau.instructure.com/login'})),/Complete the login/);
 });
