@@ -204,6 +204,31 @@ try{
   await page.unroute('**/api/computer/start');
   await page.unroute('**/api/computer/step');
  });
+ await check('Canvas human sign-in handoff stays private until explicit resume',async()=>{
+  const payloads=[];
+  await page.route('**/api/computer/start',async route=>{
+   payloads.push(route.request().postDataJSON());
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'manual-login-demo',state:'human-control',screen:null,steps:[],summary:'Sign in yourself in Chromium'})});
+  });
+  await page.route('**/api/computer/resume',async route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'manual-login-demo',state:'awaiting-approval',currentTitle:'FAU Canvas',currentUrl:'https://fau.instructure.com/courses',queue:{current:1,total:2},pending:{action:{type:'click',x:140,y:230}},steps:[]})}));
+  await page.goto(site,{waitUntil:'networkidle'});
+  await page.getByRole('button',{name:/ENTER THE BROWSER/i}).click();
+  await page.locator('.fx-computer-advanced summary').click();
+  await page.getByLabel('START AT THIS WEBSITE').fill('https://fau.instructure.com/');
+  await page.getByLabel(/LET ME SIGN IN TO CANVAS FIRST/).check();
+  await page.getByLabel('WHAT SHOULD FINESSERS DO?').fill('Read the course page without submitting anything');
+  await page.getByRole('button',{name:'START COMPUTER USE'}).click();
+  await page.getByText('HUMAN SIGN-IN / YOU\'RE IN CONTROL').waitFor();
+  assert.equal(payloads.length,1);
+  assert.equal(payloads[0].startUrl,'https://fau.instructure.com/');
+  assert.equal(payloads[0].humanLogin,true);
+  assert.equal(await page.locator('.computer-use-view img').count(),0,'Login screen must not be captured by the UI');
+  await page.getByRole('button',{name:'RESUME SUPERVISED AI'}).click();
+  await page.getByText('FAU Canvas').waitFor();
+  await page.getByText('APPROVE NEXT COMPUTER ACTION · 1 OF 2').waitFor();
+  await page.unroute('**/api/computer/start');
+  await page.unroute('**/api/computer/resume');
+ });
  await check('mobile navigation remains available',async()=>{
   await page.setViewportSize({width:390,height:844});
   await page.getByRole('button',{name:'Toggle navigation'}).click();
