@@ -26,10 +26,36 @@ try{
   const r=await fetch(api+'/api/canvas/oauth/disconnect',{method:'POST',headers:{'Content-Type':'text/plain'},body:'{}'});
   assert.equal(r.status,403);
  });
+ await check('visual system loads on desktop and respects reduced motion',async()=>{
+  await page.goto(site,{waitUntil:'networkidle'});
+  await page.getByRole('heading',{level:1,name:/FINESSERS/}).waitFor();
+  await page.locator('.fx-velocity-strip').waitFor();
+  await page.locator('.fx-laptop').waitFor();
+  const wordmarkSize=await page.locator('.fx-landing-brand .fx-mark').evaluate(el=>parseFloat(getComputedStyle(el).fontSize));
+  assert.ok(wordmarkSize>=24,'Landing brand must be readable: '+wordmarkSize+'px');
+  const layout=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth-innerWidth,hero:getComputedStyle(document.querySelector('.fx-hero')).backgroundImage}));
+  assert.ok(layout.overflow<=2,'Desktop must not scroll horizontally: '+layout.overflow);
+  assert.match(layout.hero,/gradient/);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  assert.equal(await page.locator('.fx-velocity-track').evaluate(el=>getComputedStyle(el).animationName),'none');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+ });
+ await check('landing layout fits a mobile screen',async()=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.reload({waitUntil:'networkidle'});
+  await page.getByRole('button',{name:/ENTER THE BROWSER/}).waitFor();
+  assert.ok(await page.locator('.fx-landing-brand .fx-mark').isVisible(),'Mobile wordmark must remain visible');
+  assert.ok((await page.locator('.fx-landing-brand .fx-mark').boundingBox()).width>100,'Mobile wordmark must be legible');
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+  assert.ok(overflow<=2,'Mobile landing must not scroll horizontally: '+overflow);
+  await page.setViewportSize({width:1440,height:900});
+ });
  await check('landing page and browser entry',async()=>{
   await page.goto(site,{waitUntil:'networkidle'});
-  await page.getByRole('button',{name:/GET STARTED FREE/i}).click();
+  await page.getByRole('button',{name:/ENTER THE BROWSER/i}).click();
   await page.getByRole('heading',{name:'AI BROWSER'}).waitFor();
+  await page.locator('.fx-command-ribbon').waitFor();
+  assert.ok(await page.locator('.fx-browser-shell').isVisible(),'Interactive browser shell must be visible');
  });
  await check('unified browser displays Canvas tab and AI copilot',async()=>{
   await page.getByRole('tab',{name:'Canvas Live'}).waitFor();
@@ -181,8 +207,11 @@ try{
  await check('mobile navigation remains available',async()=>{
   await page.setViewportSize({width:390,height:844});
   await page.getByRole('button',{name:'Toggle navigation'}).click();
+  await page.getByRole('button',{name:'Close navigation'}).waitFor();
   await page.getByRole('button',{name:'Beta Setup'}).last().click();
+  assert.equal(await page.getByRole('button',{name:'Close navigation'}).count(),0);
   await page.getByRole('heading',{name:'BETA SETUP'}).waitFor();
+  assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth))<=2,'Mobile workspace must not scroll horizontally');
   await page.setViewportSize({width:1440,height:900});
  });
  await context.close();
