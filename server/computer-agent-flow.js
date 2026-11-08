@@ -31,3 +31,11 @@ export function browserBarrier({url='',title='',hasPasswordInput=false,bodyText=
 export function redactedHistoryDetail(action){
  return action?.type==='type'?'[text hidden]':action?.type==='keypress'?'[keyboard shortcut]':'';
 }
+
+// Manual sign-in may resume only at the locally configured school Canvas origin.
+export function authorizeHumanResume(currentUrl,canvasBaseUrl,barrier=null){
+ if(!canvasBaseUrl)throw Error('Configure CANVAS_BASE_URL before opening an authenticated browser');
+ if(new URL(currentUrl).origin!==new URL(canvasBaseUrl).origin)throw Error('Finish signing in and return to the Canvas page before resuming AI');
+ if(barrier)throw Error('Complete the login or human-verification challenge before resuming AI');
+ return true;
+}
