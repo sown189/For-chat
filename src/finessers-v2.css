@@ -288,3 +288,36 @@
 .fx-deadline-disclosure>button svg:last-child{margin-left:auto}
 .fx-simple-welcome button:focus-visible,.fx-deadline-disclosure>button:focus-visible,.fx-side-more summary:focus-visible{outline:2px solid #caff24;outline-offset:3px}
 @media(max-width:850px){.fx-simple-welcome{align-items:flex-start;flex-direction:column}.fx-more-menu{right:auto;left:0}}
+
+
+/* Compact AI key dropdown */
+.fx-api-dropdown{position:relative;z-index:95}
+.fx-api-trigger{display:inline-flex;align-items:center;gap:7px;border:1px solid #5c6845;border-radius:9px;padding:9px 12px;background:#20271b;color:#d4ff84;white-space:nowrap;font-size:12px;font-weight:800}
+.fx-api-panel{position:absolute;right:0;top:calc(100% + 10px);width:min(340px,90vw);background:#171b17;border:1px solid #505d41;box-shadow:0 18px 42px #000b;border-radius:13px;padding:18px;color:#f3f5ee}
+.fx-api-panel strong{display:block;font-size:16px;margin-bottom:6px}
+.fx-api-panel p,.fx-api-panel small{display:block;font-size:12px;line-height:1.6;color:#c0c7b8;margin:6px 0 12px}
+.fx-api-panel label{display:block;font-size:12px;font-weight:700;margin:10px 0 5px}
+.fx-api-panel input{display:block;width:100%;min-width:0;box-sizing:border-box;background:#0d100d;color:white;border:1px solid #626b59;border-radius:8px;padding:11px}
+.fx-api-panel button{margin:10px 0;border:1px solid #9bc744;border-radius:8px;padding:10px 13px;background:#caff24;color:#13170c;font-weight:800}
+.fx-api-trigger:focus-visible,.fx-api-panel button:focus-visible,.fx-api-panel input:focus-visible{outline:2px solid #caff24;outline-offset:2px}
+/* Course Intelligence: readable hierarchy, bounded cards, responsive controls */
+.fx-tool-surface{min-width:0}
+.fx-tool-surface>.panel{max-width:1100px;margin:0 auto;min-width:0;box-sizing:border-box}
+.fx-course-intro{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:24px;border-radius:16px;background:linear-gradient(120deg,#202a18,#141814);border:1px solid #4a5c38;margin-bottom:16px}
+.fx-course-intro span{color:#caff24;font-size:11px;letter-spacing:.1em;font-weight:800}
+.fx-course-intro h2{font-size:clamp(24px,3vw,34px);line-height:1.15;margin:8px 0;color:#f8faef}
+.fx-course-intro p{font-size:14px;line-height:1.6;color:#c7d0c1;margin:0;max-width:580px}
+.fx-course-stats{min-width:135px;display:flex;flex-direction:column;align-items:center;border-left:1px solid #5a654d;padding-left:20px}
+.fx-course-stats strong{font-size:36px;color:#caff24}
+.fx-course-stats span{font-size:11px;color:#d1d8c6;letter-spacing:0;text-align:center}
+.fx-course-top-actions{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 18px}
+.fx-course-top-actions button{padding:12px 16px;border-radius:9px;border:1px solid #7a9850;background:#caff24;color:#151a0e;font-weight:800}
+.fx-course-top-actions button+button{background:#252b20;color:#d8f3ae}
+.fx-course-section{margin-top:20px;min-width:0}
+.fx-course-section h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fx-course-details{border:1px solid #424c3b;border-radius:12px;padding:13px 16px;margin:18px 0;background:#171c16;min-width:0}
+.fx-course-details summary{cursor:pointer;font-weight:800;color:#d5fca0}
+.fx-course-details[open] summary{margin-bottom:14px}
+.fx-tool-surface .note-card{min-width:0;overflow-wrap:anywhere}
+.fx-tool-surface input,.fx-tool-surface textarea{max-width:100%;box-sizing:border-box}
+@media(max-width:680px){.fx-course-intro{align-items:flex-start;flex-direction:column;padding:18px}.fx-course-stats{border-left:0;border-top:1px solid #5a654d;padding:12px 0 0;align-items:flex-start}.fx-course-top-actions{flex-direction:column}.fx-course-top-actions button{width:100%}.fx-api-panel{right:-25px}}

@@ -25,6 +25,8 @@ export function extractDeadlines(source,year=new Date().getFullYear()){
 }
 export default function CourseCockpit(){
  const [course,setCourse]=useState('');
+ const [showImport,setShowImport]=useState(false);
+ const [showAgent,setShowAgent]=useState(false);
  const [source,setSource]=useState('');
  const [items,setItems]=useState(load);
  const [notice,setNotice]=useState('');
@@ -103,17 +105,16 @@ export default function CourseCockpit(){
  };
  const change=(id,patch)=>setItems(prev=>prev.map(x=>x.id===id?{...x,...patch}:x));
  return <section className="panel" aria-label="Course cockpit">
-  <AcademicAgent/>
-  <h3><ClipboardList size={22}/> COURSE COCKPIT <small>READ-ONLY MVP</small></h3>
-  <p>Paste a syllabus or assignment list. Finessers detects dated lines and lets you verify each one before it enters your study plan. Everything stays in this browser.</p>
+  <div className="fx-course-intro"><div><span>MY COURSES / CANVAS</span><h2>Your coursework, organized.</h2><p>See what is due, review instructions, and plan your next study session. Nothing is submitted to Canvas.</p></div><div className="fx-course-stats"><strong>{upcoming.length}</strong><span>Upcoming deadlines</span></div></div>
+  <div className="fx-course-top-actions"><button type="button" onClick={runMission} disabled={missionBusy}>{missionBusy?"Checking…":"What should I do this week?"}</button><button type="button" onClick={syncCanvas} disabled={syncing}>{syncing?"Syncing…":"Sync Canvas deadlines"}</button></div>
   <div className="note-card">
-   <strong>CONNECT CANVAS ASSIGNMENTS</strong>
+   <strong>Canvas connection & course insights</strong>
    <p><button type="button" onClick={verifyCanvas} disabled={verifying}>{verifying?'CHECKING CANVAS…':'VERIFY LIVE CANVAS CONNECTION'}</button></p>
    {canvasVerification&&<p role="status">{canvasVerification.ok?'CONNECTED: '+canvasVerification.courses+' courses, '+canvasVerification.upcomingAssignments+' upcoming assignments'+(canvasVerification.partial?' (partial results)':''):'NOT CONNECTED: '+canvasVerification.error}</p>}
    <p>Import upcoming assignment titles and due dates from your configured Canvas account. Nothing is submitted or modified in Canvas. Review every imported deadline before approving it.</p>
    <button type="button" onClick={investigateCourses} disabled={investigationBusy}>{investigationBusy?'INVESTIGATING COURSES…':'INVESTIGATE MY COURSES & TELL ME WHAT TO DO'}</button>
-   <button type="button" onClick={runMission} disabled={missionBusy}>{missionBusy?'INVESTIGATING…':'FIND WHAT I NEED TO DO THIS WEEK'}</button>
-   <button type="button" onClick={syncCanvas} disabled={syncing}>{syncing?'SYNCING…':'IMPORT FROM CANVAS'}</button>
+
+
    {investigation&&<div className="note-card" aria-label="Course investigation report">
     <h4>COURSE INVESTIGATION</h4>
     <p>{investigation.mission.totalUpcoming} upcoming assignments · {investigation.reviewed} descriptions reviewed · {investigation.unavailable} unavailable</p>
@@ -148,15 +149,15 @@ export default function CourseCockpit(){
    {canvasStatus&&<p role="status">{canvasStatus}</p>}
    <p><small>Requires the local Finessers backend with CANVAS_BASE_URL and CANVAS_ACCESS_TOKEN configured. Credentials stay on the backend.</small></p>
   </div>
-  <form className="stacked" onSubmit={importText}>
+  <details className="fx-course-details" open={showImport} onToggle={e=>setShowImport(e.currentTarget.open)}><summary>Import deadlines from a syllabus</summary><p>Paste assignment dates when your Canvas connection is unavailable.</p><form className="stacked" onSubmit={importText}>
    <label htmlFor="cockpit-course">COURSE</label>
    <input id="cockpit-course" value={course} onChange={e=>setCourse(e.target.value)} placeholder="e.g. Introduction to Criminal Justice" required/>
    <label htmlFor="cockpit-source">SYLLABUS / ASSIGNMENT TEXT</label>
    <textarea id="cockpit-source" rows={7} value={source} onChange={e=>setSource(e.target.value)} placeholder={'Quiz 1 — November 18, 2026\nResearch paper — December 4, 2026'} required/>
-   <button type="submit">FIND POTENTIAL DEADLINES</button>
-  </form>
+   <button type="submit">Find deadlines</button>
+  </form></details>
   {notice&&<p role="status">{notice}</p>}
-  <h3><CheckCircle2 size={20}/> VERIFY DEADLINES <small>{items.filter(x=>!x.approved).length} TO REVIEW</small></h3>
+  <div className="fx-course-section"><h3><CheckCircle2 size={20}/> Review imported deadlines <small>{items.filter(x=>!x.approved).length} TO REVIEW</small></h3>
   {items.filter(x=>!x.approved).map(x=><article className="note-card" key={x.id}>
    <label>Assignment <input aria-label="Assignment title" value={x.title} onChange={e=>change(x.id,{title:e.target.value})}/></label>
    <label>Due date <input aria-label="Due date" type="date" value={x.due} onChange={e=>change(x.id,{due:e.target.value})}/></label>
@@ -164,7 +165,7 @@ export default function CourseCockpit(){
    <button onClick={()=>change(x.id,{approved:true})} disabled={!x.title.trim()||!x.due}>APPROVE</button>
    <button className="remove" onClick={()=>setItems(prev=>prev.filter(y=>y.id!==x.id))}>DISCARD</button>
   </article>)}
-  <h3><CalendarDays size={20}/> YOUR STUDY PLAN <small>{approved.length} VERIFIED</small></h3>
+  </div><div className="fx-course-section"><h3><CalendarDays size={20}/> Your study plan <small>{approved.length} VERIFIED</small></h3>
   {nextWeek.length>0&&<p role="status">{nextWeek.length} approved assignment(s) due within seven days. Prioritize the earliest deadlines first.</p>}
   {!upcoming.length&&<p>Approve upcoming deadlines to build your plan. Completed or past deadlines are excluded.</p>}
   {upcoming.map(x=>{const days=Math.ceil((new Date(x.due+'T12:00:00')-new Date())/86400000);return <article className="note-card" key={x.id}>
@@ -172,6 +173,7 @@ export default function CourseCockpit(){
    <p>Suggested study sequence: review source material → recall from memory → answer practice questions → correct mistakes. {days<=1?'Due soon: prioritize review and submission preparation.':days<=3?'Split preparation across today and tomorrow.':'Start with a short review session today and revisit before the due date.'}</p>
    <button onClick={()=>change(x.id,{done:true})}>MARK COMPLETE</button>
   </article>})}
+  </div><details className="fx-course-details" open={showAgent} onToggle={e=>setShowAgent(e.currentTarget.open)}><summary>Advanced AI course assistant</summary><AcademicAgent/></details>
   <p><small>Pasted dates are extracted heuristically. Canvas imports read assignment metadata only when configured. Check all entries against the original course source. No assignments are submitted.</small></p>
  </section>;
 }
