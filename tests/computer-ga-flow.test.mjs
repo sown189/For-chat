@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {COMPUTER_MODEL,MAX_BATCH_ACTIONS,buildComputerRequest,parseComputerCall,computerCallOutput,browserBarrier,redactedHistoryDetail} from '../server/computer-agent-flow.js';
-import {validateComputerAction} from '../server/computer-policy.js';
+import {validateProposedAction} from '../server/computer-policy.js';
 
 test('GA computer protocol uses the current tool rather than the retired preview',()=>{
  const first=buildComputerRequest([{role:'user',content:'Find a public course catalog'}]);
@@ -35,6 +35,6 @@ test('login and human-verification gates stop navigation while ordinary public p
 });
 test('typing content is not copied into action history and excessive waits are blocked',()=>{
  assert.equal(redactedHistoryDetail({type:'type',text:'sensitive school answer'}),'[text hidden]');
- assert.equal(validateComputerAction({type:'wait'}).type,'wait');
- assert.throws(()=>validateComputerAction({type:'wait',ms:10000}),/Wait action/);
+ assert.equal(validateProposedAction({type:'wait'}).type,'wait');
+ assert.throws(()=>validateProposedAction({type:'wait',ms:10000}),/Wait action/);
 });
