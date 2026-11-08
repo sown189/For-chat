@@ -20,3 +20,10 @@ test('computer action validator blocks offscreen clicks, oversized scrolls and u
   {type:'click',x:100,y:100,button:'right'}
  ])assert.throws(()=>validateComputerAction(action),undefined,JSON.stringify(action).slice(0,100));
 });
+
+test('read-only keyboard safety blocks shortcuts that can mutate or export student data',()=>{
+ for(const keys of [['CTRL','S'],['META','P'],['CTRL','ENTER'],['CTRL','A'],['ALT','F4'],['META','C']])
+  assert.throws(()=>validateComputerAction({type:'keypress',keys}),/not permitted|Unsupported keyboard/);
+ for(const keys of [['CTRL','L'],['META','R'],['CTRL','F'],['SHIFT','TAB']])
+  assert.equal(validateComputerAction({type:'keypress',keys}).type,'keypress');
+});

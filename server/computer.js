@@ -17,7 +17,7 @@ const visionModel=process.env.OLLAMA_VISION_MODEL||'qwen2.5vl:7b';
 const safeUrl=checkUrl;
 const snapshot=async job=>{const observation=await captureBrowserObservation(job.page);job.lastObservedAt=observation.observedAt;job.currentUrl=observation.url;job.currentTitle=observation.title;return observation.screen};
 async function inspectBarrier(job){const [hasPasswordInput,bodyText]=await Promise.all([job.page.locator('input[type="password"]').count().then(n=>n>0).catch(()=>false),job.page.locator('body').innerText({timeout:2000}).then(t=>t.slice(0,1600)).catch(()=>'')]);return browserBarrier({url:job.page.url(),title:await job.page.title().catch(()=>''),hasPasswordInput,bodyText})}
-const view=job=>({id:job.id,state:job.state,screen:job.screen,steps:job.steps.slice(-25),pending:job.pending?{action:job.pending.action,checks:job.pending.checks?.map(c=>({code:c.code,message:c.message}))||[]}:null,summary:job.summary,error:job.error,observedAt:job.lastObservedAt||null,currentUrl:job.currentUrl||null,currentTitle:job.currentTitle||null,barrier:job.barrier||null,recoverable:job.recoverable===true,queue:job.batch?{current:job.batch.index+1,total:job.batch.actions.length}:null});
+const view=job=>({id:job.id,state:job.state,screen:job.screen,steps:job.steps.slice(-25),pending:job.pending?{action:job.pending.action,checks:job.pending.checks?.map(c=>({code:c.code,message:c.message}))||[]}:null,summary:job.summary,error:job.error,observedAt:job.lastObservedAt||null,currentUrl:job.currentUrl||null,currentTitle:job.currentTitle||null,barrier:job.barrier||null,recoverable:job.recoverable===true,remainingActions:Math.max(0,40-job.steps.length),queue:job.batch?{current:job.batch.index+1,total:job.batch.actions.length}:null});
 async function callLocal(job){
  const image=(await job.page.screenshot({type:'jpeg',quality:75})).toString('base64');
  const visibleText=await job.page.locator('body').innerText({timeout:2500}).then(t=>t.slice(0,4000)).catch(()=>'');
@@ -82,6 +82,7 @@ async function execute(job,a){
 }
 async function advance(job,reply){
  if(job.state==='stopped')return view(job);
+ if(job.steps.length>=40){job.state='completed';job.summary='Reached the 40-action safety limit. Start a new task to continue.';job.pending=null;job.batch=null;return view(job)}
  job.resumeReply=reply;job.recoverable=false;job.error=null;
  try{
   job.state='running';
@@ -99,7 +100,7 @@ async function advance(job,reply){
   job.pending={action:batch.actions[0],callId:batch.callId,checks:batch.checks};
   job.state='awaiting-approval';
   return view(job);
- }catch(e){job.state='error';job.error=e.message;job.recoverable=true;return view(job)}
+ }catch(e){job.state='error';job.error=e.message;job.recoverable=job.retries!==undefined?job.retries<2:true;return view(job)}
 }
 async function start(task,key,mode='openai',startUrl='https://www.google.com/',options={}){
  if(typeof task!=='string'||!task.trim()||task.length>2000)throw Error('Enter a task under 2000 characters');
@@ -176,7 +177,7 @@ async function retry(id){
  job.retries=(job.retries||0)+1;if(job.retries>2)throw Error('Retry limit reached; start a new task');
  return advance(job,job.resumeReply);
 }
-async function status(id){await pruneJobs();const job=jobs.get(id);if(!job)throw Error('Session not found');if(job.state!=='human-control')job.screen=await snapshot(job);return view(job)}
+async function status(id){await pruneJobs();const job=jobs.get(id);if(!job)throw Error('Session not found');if(job.state==='human-control')return view(job);if(!job.stepping&&job.state!=='running')job.screen=await snapshot(job);return view(job)}
 async function revokeOpenAIKey(){await Promise.all([...jobs].filter(([,job])=>job.mode==='openai').map(async([id,job])=>{jobs.delete(id);job.state='stopped';job.pending=null;job.key=null;await job.browser.close().catch(()=>{})}));}
 async function stop(id){await pruneJobs();const job=jobs.get(id);if(!job)return {id,state:'stopped'};job.state='stopped';job.pending=null;jobs.delete(id);await job.browser.close().catch(()=>{});return {id,state:'stopped'}}
 export {start,step,resume,retry,status,stop,revokeOpenAIKey,assertReadOnlyRequest,validateComputerAction};
