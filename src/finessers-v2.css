@@ -270,3 +270,21 @@
  .fx-v2-app .fx-workspace-title h1{overflow-wrap:anywhere}
  .fx-v2-app .fx-beta-checks article>div{min-width:0;overflow-wrap:anywhere}
 }
+
+
+/* Student-first workspace: advanced tools are available, never in the way. */
+.fx-app-tabs .fx-more-wrap{position:relative;display:flex;align-items:center}
+.fx-more-wrap>button{display:flex;align-items:center;gap:7px}
+.fx-more-menu{position:absolute;right:0;top:calc(100% + 10px);min-width:190px;background:#17191c;border:1px solid #484b4e;border-radius:12px;padding:7px;z-index:80;box-shadow:0 16px 38px #0009}
+.fx-more-menu button{width:100%;display:flex;gap:10px;align-items:center;justify-content:flex-start;padding:11px 12px;border-radius:8px;white-space:nowrap}
+.fx-more-menu button:hover,.fx-more-menu button:focus-visible{background:#343b2b;color:#d4ff48}
+.fx-side-more summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 16px;color:#aeb3ac;font-size:12px;font-weight:800;letter-spacing:.08em}
+.fx-side-more button{display:flex;width:100%;align-items:center;gap:12px;padding:12px 16px;text-align:left}
+.fx-simple-welcome{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;margin-bottom:14px;border:1px solid #444a3d;border-radius:12px;background:#1b201a}
+.fx-simple-welcome strong{font-size:17px;color:#f1f4ec}
+.fx-simple-welcome p{font-size:13px;color:#afb5a9;margin:5px 0 0}
+.fx-simple-welcome button{display:flex;align-items:center;gap:5px;border:1px solid #5e6851;border-radius:8px;padding:9px 12px;color:#d3fca0;white-space:nowrap}
+.fx-deadline-disclosure>button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:12px 14px;border:1px solid #3e433c;border-radius:9px;margin:10px 0;color:#cbd4c0;font-weight:700}
+.fx-deadline-disclosure>button svg:last-child{margin-left:auto}
+.fx-simple-welcome button:focus-visible,.fx-deadline-disclosure>button:focus-visible,.fx-side-more summary:focus-visible{outline:2px solid #caff24;outline-offset:3px}
+@media(max-width:850px){.fx-simple-welcome{align-items:flex-start;flex-direction:column}.fx-more-menu{right:auto;left:0}}
