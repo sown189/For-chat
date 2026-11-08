@@ -44,3 +44,17 @@ The visible login mode requires a graphical desktop and may not work with every 
 ### Acceptance tests
 
 Run `npm test && npm run build`, then start the backend and run `npm run test:e2e`. Separately verify on a real account: read-only navigations, no automatic assignment submission, manual login privacy, safe search, refusal of logout/delete links, interrupted network recovery, and operator stop behavior. Require a production security review before deployment.
+
+## Remaining gates before a 95%-complete private beta claim
+
+Automated tests are necessary but not proof of real-world task completion. Do **not** label the browser agent 95% complete until the following checks have been performed on the student's own Mac:
+
+- [ ] OpenAI API key connects and an actual billed `computer` tool call returns a usable action batch.
+- [ ] Student can manually sign in to the configured Canvas origin in visible Chromium and resume AI without exposing login screenshots.
+- [ ] Complete five supervised read-only Canvas workflows, including course navigation, assignment instructions, due dates, and study-material preparation.
+- [ ] Verify the agent cannot submit assignments, send messages, purchase items, or modify course/account data.
+- [ ] Verify interruptions, page redirects, slow loads, stop controls, and the 40-action session limit.
+- [ ] Confirm AI screenshots do not capture sensitive content beyond the user's intended session, and document the data-sharing consent.
+- [ ] Validate actual model cost per task and enforce an account-level usage budget before offering paid plans.
+
+Public multi-user launch also requires production identity, per-user data isolation, payment security, abuse controls, and security review. These remain distinct from private beta completion.
