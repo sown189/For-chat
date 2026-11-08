@@ -16,6 +16,15 @@ export function validateProposedAction(a){
  if(a.type==='scroll'&&(!Number.isFinite(Number(a.scroll_y||0))||Math.abs(Number(a.scroll_y||0))>1500||!Number.isFinite(Number(a.scroll_x||0))||Math.abs(Number(a.scroll_x||0))>1500))throw Error('Scroll amount exceeds safe limit');
  if(a.type==='type'&&(typeof a.text!=='string'||a.text.length>3000))throw Error('Invalid typed text');
  if(a.type==='keypress'&&(!Array.isArray(a.keys)||a.keys.length<1||a.keys.length>4||a.keys.some(k=>typeof k!=='string'||!(/^(?:ARROWUP|ARROWDOWN|ARROWLEFT|ARROWRIGHT|TAB|ENTER|RETURN|ESC|ESCAPE|BACKSPACE|DELETE|HOME|END|PAGEUP|PAGEDOWN|CTRL|META|SHIFT|ALT|[A-Z0-9])$/i).test(k))))throw Error('Unsupported keyboard shortcut');
+ if(a.type==='keypress'){
+  const keys=a.keys.map(k=>k.toUpperCase());
+  const modifiers=keys.filter(k=>['CTRL','META','ALT','SHIFT'].includes(k));
+  if(modifiers.length){
+   const normalized=[...keys].sort().join('+');
+   const allowed=new Set(['CTRL+L','L+META','CTRL+R','META+R','CTRL+F','F+META','SHIFT+TAB']);
+   if(!allowed.has(normalized))throw Error('Keyboard shortcut is not permitted in read-only mode');
+  }
+ }
  if(a.type==='wait'&&a.ms!==undefined&&(!Number.isFinite(a.ms)||a.ms<0||a.ms>2000))throw Error('Wait action exceeds safe limit');
  if(a.type==='drag'&&(!Array.isArray(a.path)||a.path.length<2||a.path.length>30||a.path.some(p=>!point(p))))throw Error('Invalid drag path');
  return a;
