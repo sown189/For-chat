@@ -14,7 +14,7 @@ test('GA computer protocol uses the current tool rather than the retired preview
 test('multiple computer actions are individually checked before execution',()=>{
  const call=parseComputerCall({output:[{type:'computer_call',call_id:'call_1',actions:[{type:'click',button:'left',x:200,y:250},{type:'wait'},{type:'screenshot'}]}]});
  assert.equal(call.actions.length,3);
- call.actions.forEach(validateComputerAction);
+ call.actions.forEach(validateProposedAction);
  assert.equal(parseComputerCall({output:[{type:'message'}]}),null);
  for(const actions of [[],Array.from({length:MAX_BATCH_ACTIONS+1},()=>({type:'screenshot'}))])
   assert.throws(()=>parseComputerCall({output:[{type:'computer_call',call_id:'x',actions}]}),/invalid action batch/);
