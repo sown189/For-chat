@@ -1,5 +1,7 @@
 import { chromium } from 'playwright';
 import { randomUUID } from 'node:crypto';
+import {lookup} from 'node:dns/promises';
+import {isIP} from 'node:net';
 
 const sessions = new Map();
 const MAX_SESSIONS = 3;
@@ -26,12 +28,45 @@ function checkUrl(raw) {
   }
   return url.toString();
 }
+// Defensive preflight against hostnames resolving to cloud metadata, loopback or LAN IPs.
+// This is not DNS pinning or a substitute for production egress filtering.
+const dnsCache=new Map();
+function isNonPublicAddress(raw){
+ const addr=String(raw).toLowerCase();
+ if(isIP(addr)===4){
+  const a=addr.split('.').map(Number),[first,second,third]=a;
+  return first===0||first===10||first===127||first>=224||first===169&&second===254||
+   first===100&&second>=64&&second<=127||first===172&&second>=16&&second<=31||
+   first===192&&(second===168||second===0&&third===0||second===0&&third===2)||
+   first===198&&(second===18||second===19||second===51&&third===100)||
+   first===203&&second===0&&third===113;
+ }
+ if(isIP(addr)===6){
+  // Only global-unicast IPv6 destinations are acceptable; reject mapped IPv4,
+  // link-local, ULA, documentation and non-global ranges.
+  return !/^[23][0-9a-f]{0,3}:/.test(addr)||addr.startsWith('2001:db8:')||addr==='2001:db8::';
+ }
+ return true;
+}
+async function verifyPublicUrl(raw){
+ const url=checkUrl(raw),host=new URL(url).hostname.replace(/^\[|\]$/g,'');
+ if(isIP(host)){if(isNonPublicAddress(host))throw Error('Non-public network destination is blocked');return url}
+ const cached=dnsCache.get(host);
+ if(cached&&cached.expires>Date.now()){if(!cached.ok)throw Error('Non-public DNS destination is blocked');return url}
+ let addresses;
+ try{addresses=await lookup(host,{all:true,verbatim:true})}catch{throw Error('Destination DNS could not be verified')}
+ const ok=addresses.length>0&&addresses.every(({address})=>!isNonPublicAddress(address));
+ dnsCache.set(host,{ok,expires:Date.now()+30000});
+ if(!ok)throw Error('Non-public DNS destination is blocked');
+ return url;
+}
 function publicSnapshot(page) {
   return page.locator('body').innerText({timeout: 5000}).then(text => text.slice(0, 16000));
 }
 async function createSession(url, options={}) {
   const permittedOrigin=options.allowedOrigin ? new URL(options.allowedOrigin).origin : null;
   if(permittedOrigin && new URL(url).origin!==permittedOrigin)throw Error('Browser destination is outside allowed origin');
+  await verifyPublicUrl(url);
   await pruneSessions();
   if (sessions.size >= MAX_SESSIONS) throw Error('Session limit reached; close an existing session');
   const browser = await chromium.launch({headless: true});
@@ -39,7 +74,7 @@ async function createSession(url, options={}) {
     const context = await browser.newContext({acceptDownloads: false});
     await context.route('**/*', async route => {
       try {
-        checkUrl(route.request().url());
+        await verifyPublicUrl(route.request().url());
         if(!READ_ONLY_METHODS.has(route.request().method().toUpperCase()))throw Error('Read-only browser blocks non-GET network requests');
         if(permittedOrigin && route.request().isNavigationRequest() && new URL(route.request().url()).origin!==permittedOrigin)throw Error('Cross-origin navigation blocked');
         await route.continue();
@@ -84,7 +119,7 @@ async function act(id, action) {
   if (!s) throw Error('Unknown browser session');
   if (!action || !['click', 'scroll', 'navigate'].includes(action.type)) throw Error('Unsupported action');
   if (action.type === 'navigate') {
-    const destination=checkUrl(action.url);
+    const destination=await verifyPublicUrl(action.url);
     if(s.permittedOrigin&&new URL(destination).origin!==s.permittedOrigin)throw Error('Navigation outside the approved origin is blocked');
     await s.page.goto(destination, {waitUntil: 'domcontentloaded'});
   } else if (action.type === 'scroll') {
@@ -101,7 +136,7 @@ async function act(id, action) {
       if (tag !== 'a' || type === 'submit' || type === 'file') throw Error('Read-only mode allows navigation links only');
       const href=await target.getAttribute('href');
       if (!href) throw Error('Link has no destination');
-      const destination=checkUrl(new URL(href,s.page.url()).toString());
+      const destination=await verifyPublicUrl(new URL(href,s.page.url()).toString());
       if(s.permittedOrigin&&new URL(destination).origin!==s.permittedOrigin)throw Error('Link outside the approved origin is blocked');
       await target.click();
     } else {
@@ -123,4 +158,4 @@ async function close(id) {
   await s.browser.close();
   return true;
 }
-export {createSession, observe, act, close, screenshot, checkUrl};
+export {createSession, observe, act, close, screenshot, checkUrl,verifyPublicUrl,isNonPublicAddress};

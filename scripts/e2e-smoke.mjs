@@ -26,10 +26,36 @@ try{
   const r=await fetch(api+'/api/canvas/oauth/disconnect',{method:'POST',headers:{'Content-Type':'text/plain'},body:'{}'});
   assert.equal(r.status,403);
  });
+ await check('visual system loads on desktop and respects reduced motion',async()=>{
+  await page.goto(site,{waitUntil:'networkidle'});
+  await page.getByRole('heading',{level:1,name:/FINESSERS/}).waitFor();
+  await page.locator('.fx-velocity-strip').waitFor();
+  await page.locator('.fx-laptop').waitFor();
+  const wordmarkSize=await page.locator('.fx-landing-brand .fx-mark').evaluate(el=>parseFloat(getComputedStyle(el).fontSize));
+  assert.ok(wordmarkSize>=24,'Landing brand must be readable: '+wordmarkSize+'px');
+  const layout=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth-innerWidth,hero:getComputedStyle(document.querySelector('.fx-hero')).backgroundImage}));
+  assert.ok(layout.overflow<=2,'Desktop must not scroll horizontally: '+layout.overflow);
+  assert.match(layout.hero,/gradient/);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  assert.equal(await page.locator('.fx-velocity-track').evaluate(el=>getComputedStyle(el).animationName),'none');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+ });
+ await check('landing layout fits a mobile screen',async()=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.reload({waitUntil:'networkidle'});
+  await page.getByRole('button',{name:/ENTER THE BROWSER/}).waitFor();
+  assert.ok(await page.locator('.fx-landing-brand .fx-mark').isVisible(),'Mobile wordmark must remain visible');
+  assert.ok((await page.locator('.fx-landing-brand .fx-mark').boundingBox()).width>100,'Mobile wordmark must be legible');
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+  assert.ok(overflow<=2,'Mobile landing must not scroll horizontally: '+overflow);
+  await page.setViewportSize({width:1440,height:900});
+ });
  await check('landing page and browser entry',async()=>{
   await page.goto(site,{waitUntil:'networkidle'});
-  await page.getByRole('button',{name:/GET STARTED FREE/i}).click();
+  await page.getByRole('button',{name:/ENTER THE BROWSER/i}).click();
   await page.getByRole('heading',{name:'AI BROWSER'}).waitFor();
+  await page.locator('.fx-command-ribbon').waitFor();
+  assert.ok(await page.locator('.fx-browser-shell').isVisible(),'Interactive browser shell must be visible');
  });
  await check('unified browser displays Canvas tab and AI copilot',async()=>{
   await page.getByRole('tab',{name:'Canvas Live'}).waitFor();
@@ -38,7 +64,7 @@ try{
  });
  await check('AI tab metadata is opt-in',async()=>{
   const sidebar=page.getByRole('complementary',{name:'Finessers AI sidebar'});
-  const box=sidebar.getByRole('checkbox');
+  const box=sidebar.getByRole('checkbox',{name:/Include tab title and URL/});
   assert.equal(await box.isChecked(),false);
   await box.check();assert.equal(await box.isChecked(),true);
   await box.uncheck();
@@ -62,7 +88,11 @@ try{
   await page.getByRole('alert').filter({hasText:'valid http(s)'}).waitFor();
   await page.getByRole('textbox',{name:'Website address'}).fill('https://example.com/');
   await page.getByRole('button',{name:/^GO$/}).click();
-  await page.getByText('https://example.com/',{exact:true}).first().waitFor();
+  await page.getByRole('tab',{name:'example.com'}).waitFor();
+  assert.match(await page.getByRole('textbox',{name:'Website address'}).getAttribute('placeholder'),/example\.com/);
+  await page.getByRole('button',{name:'AI NAVIGATE THIS SITE'}).click();
+  assert.match(await page.getByLabel('WHAT SHOULD FINESSERS DO?').inputValue(),/example\.com/);
+  await page.locator('.fx-computer-advanced summary').click();
  });
  await check('study generator creates and reveals a flashcard',async()=>{
   await page.getByRole('button',{name:'Study',exact:true}).first().click();
@@ -102,7 +132,7 @@ try{
    };
    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(fixtures[view]||{})});
   });
-  await page.getByRole('button',{name:'REFRESH',exact:true}).click();
+  await page.getByRole('region',{name:'Authenticated Canvas navigator'}).getByRole('button',{name:'REFRESH',exact:true}).click();
   await page.getByRole('button',{name:/Demo Course/}).click();
   await page.getByRole('button',{name:/Demo Assignment/}).click();
   await page.getByText('Practice these concepts').waitFor();
@@ -111,6 +141,103 @@ try{
   await page.getByRole('button',{name:/Reading/}).click();
   await page.getByText('Study the material').waitFor();
   await page.unroute('**/api/canvas/navigate?*');
+ });
+ await check('page-aware AI keeps page text private until opt-in',async()=>{
+  const sidebar=page.getByRole('complementary',{name:'Finessers AI sidebar'});
+  await sidebar.getByText(/PAGE TEXT READY/).waitFor();
+  const consent=sidebar.getByRole('checkbox',{name:/Include current page text/});
+  assert.equal(await consent.isChecked(),false);
+  const prompts=[];
+  await page.route('**/api/agent/plan',async route=>{
+   prompts.push(route.request().postDataJSON().task);
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({plan:'Page-aware response '+prompts.length})});
+  });
+  await sidebar.getByRole('button',{name:'EXPLAIN'}).click();
+  await sidebar.getByText('Page-aware response 1').waitFor();
+  assert.ok(!prompts[0].includes('Study the material'),'Page text must not be transmitted by default');
+  await consent.check();
+  await sidebar.getByRole('button',{name:'EXPLAIN'}).click();
+  await sidebar.getByText('Page-aware response 2').waitFor();
+  assert.ok(prompts[1].includes('Study the material'),'Opt-in must include the selected page text');
+  await page.unroute('**/api/agent/plan');
+  await sidebar.getByRole('button',{name:/STUDY THIS PAGE/}).click();
+  await page.getByRole('heading',{name:'STUDY GENERATOR'}).waitFor();
+  await page.waitForFunction(()=>document.getElementById('fx-study-notes')?.value.includes('Study the material'));
+  assert.match(await page.getByLabel('YOUR NOTES').inputValue(),/Study the material/);
+  await page.getByRole('heading',{name:/7-DAY PRACTICE PLAN/}).waitFor();
+ });
+ await check('Canvas deadline radar auto-syncs and opens local study',async()=>{
+  await page.route('**/api/course-mission',async route=>{
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({totalUpcoming:1,dueThisWeek:1,tasks:[{id:'42-9',course:'Demo Course',title:'Demo Due Assignment',dueAt:'2026-11-10T17:00:00Z',priority:'high',studyActions:['Read details'],url:'https://example.edu/courses/42/assignments/9'}],canvas:{partial:false}})});
+  });
+  await page.route('**/api/course-context?*',async route=>{
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({context:{description:'Voir dire — Jury selection questioning'},guide:{requirements:['Explain voir dire']}})});
+  });
+  await page.getByRole('button',{name:'Browser',exact:true}).first().click();
+  const radar=page.getByRole('region',{name:'Canvas deadlines radar'});
+  await radar.getByText('Demo Due Assignment').waitFor();
+  await radar.getByRole('button',{name:'STUDY'}).click();
+  await page.getByRole('heading',{name:'STUDY GENERATOR'}).waitFor();
+  await page.getByText('Voir dire',{exact:true}).first().click();
+  await page.getByText('Jury selection questioning',{exact:true}).first().waitFor();
+  await page.unroute('**/api/course-mission');
+  await page.unroute('**/api/course-context?*');
+ });
+ await check('beta checklist exposes actual local deployment blockers',async()=>{
+  await page.getByRole('button',{name:'Beta Setup'}).first().click();
+  const setup=page.getByRole('region',{name:'Private beta setup'});
+  await setup.getByText('Public user authentication').waitFor();
+  assert.ok(await setup.getByText('Production readiness').count()>0);
+  assert.ok(await setup.getByText('NOT READY',{exact:true}).count()>=2);
+ });
+ await check('computer use shows explicit next action and approved timeline',async()=>{
+  await page.route('**/api/computer/start',async route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'demo-session',state:'awaiting-approval',pending:{action:{type:'click',x:10,y:30}},steps:[]})}));
+  await page.route('**/api/computer/step',async route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'demo-session',state:'completed',steps:[{label:'click',detail:'navigation link'}],summary:'Demo task completed'})}));
+  await page.getByRole('button',{name:'Browser',exact:true}).first().click();
+  await page.locator('.fx-computer-advanced summary').click();
+  await page.getByLabel('WHAT SHOULD FINESSERS DO?').fill('Open the school calendar');
+  await page.getByRole('button',{name:'START COMPUTER USE'}).click();
+  await page.getByText('APPROVE NEXT COMPUTER ACTION').waitFor();
+  await page.getByRole('button',{name:/APPROVE & CONTINUE/}).click();
+  await page.getByRole('heading',{name:/ACTION TIMELINE/}).waitFor();
+  await page.getByText('Demo task completed').waitFor();
+  await page.unroute('**/api/computer/start');
+  await page.unroute('**/api/computer/step');
+ });
+ await check('Canvas human sign-in handoff stays private until explicit resume',async()=>{
+  const payloads=[];
+  await page.route('**/api/computer/start',async route=>{
+   payloads.push(route.request().postDataJSON());
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'manual-login-demo',state:'human-control',screen:null,steps:[],summary:'Sign in yourself in Chromium'})});
+  });
+  await page.route('**/api/computer/resume',async route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'manual-login-demo',state:'awaiting-approval',currentTitle:'FAU Canvas',currentUrl:'https://fau.instructure.com/courses',queue:{current:1,total:2},pending:{action:{type:'click',x:140,y:230}},steps:[]})}));
+  await page.goto(site,{waitUntil:'networkidle'});
+  await page.getByRole('button',{name:/ENTER THE BROWSER/i}).click();
+  await page.locator('.fx-computer-advanced summary').click();
+  await page.getByLabel('START AT THIS WEBSITE').fill('https://fau.instructure.com/');
+  await page.getByLabel(/LET ME SIGN IN TO CANVAS FIRST/).check();
+  await page.getByLabel('WHAT SHOULD FINESSERS DO?').fill('Read the course page without submitting anything');
+  await page.getByRole('button',{name:'START COMPUTER USE'}).click();
+  await page.getByText('HUMAN SIGN-IN / YOU\'RE IN CONTROL').waitFor();
+  assert.equal(payloads.length,1);
+  assert.equal(payloads[0].startUrl,'https://fau.instructure.com/');
+  assert.equal(payloads[0].humanLogin,true);
+  assert.equal(await page.locator('.computer-use-view img').count(),0,'Login screen must not be captured by the UI');
+  await page.getByRole('button',{name:'RESUME SUPERVISED AI'}).click();
+  await page.getByText('FAU Canvas').waitFor();
+  await page.getByText('APPROVE NEXT COMPUTER ACTION · 1 OF 2').waitFor();
+  await page.unroute('**/api/computer/start');
+  await page.unroute('**/api/computer/resume');
+ });
+ await check('mobile navigation remains available',async()=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole('button',{name:'Toggle navigation'}).click();
+  await page.getByRole('button',{name:'Close navigation'}).waitFor();
+  await page.getByRole('button',{name:'Beta Setup'}).last().click();
+  assert.equal(await page.getByRole('button',{name:'Close navigation'}).count(),0);
+  await page.getByRole('heading',{name:'BETA SETUP'}).waitFor();
+  assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth))<=2,'Mobile workspace must not scroll horizontally');
+  await page.setViewportSize({width:1440,height:900});
  });
  await context.close();
 }finally{await browser.close()}

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview",
     "api": "node server/index.js",
@@ -12,7 +12,8 @@
     "test": "node --test tests/*.test.mjs",
     "doctor": "node scripts/doctor.mjs",
     "test:canvas-live": "node scripts/canvas-live-smoke.mjs",
-    "test:e2e": "node scripts/e2e-smoke.mjs"
+    "test:e2e": "node scripts/e2e-smoke.mjs",
+    "visual:snapshots": "node scripts/visual-snapshots.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

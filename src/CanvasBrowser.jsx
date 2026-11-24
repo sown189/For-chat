@@ -8,7 +8,7 @@ async function fetchView(location,signal){
  return body;
 }
 const date=value=>value?new Date(value).toLocaleString():'No due date';
-export default function CanvasBrowser(){
+export default function CanvasBrowser({onPageContentChange}){
  const [location,setLocation]=useState({view:'courses'});
  const [data,setData]=useState(null);
  const [error,setError]=useState('');
@@ -21,6 +21,13 @@ export default function CanvasBrowser(){
   fetchView(location,controller.signal).then(setData).catch(e=>{if(e.name!=='AbortError')setError(e.message)}).finally(()=>{if(!controller.signal.aborted)setLoading(false)});
   return ()=>controller.abort();
  },[location,revision]);
+ useEffect(()=>{
+  if(data?.view==='assignment'&&data.assignment){
+   onPageContentChange?.({kind:'canvas-assignment',title:String(data.assignment.title||'Canvas assignment'),content:String(data.assignment.description||'No instructions were provided.').slice(0,12000),sourceUrl:data.assignment.htmlUrl||null});
+  }else if(data?.view==='page'&&data.page){
+   onPageContentChange?.({kind:'canvas-page',title:String(data.page.title||'Canvas page'),content:String(data.page.body||'').slice(0,12000),sourceUrl:data.page.htmlUrl||null});
+  }else onPageContentChange?.(null);
+ },[data,onPageContentChange]);
  const navigate=(view,extra={})=>setLocation({view,...extra});
  const courseId=location.courseId;
  const sectionView=(next)=>{setSection(next);navigate(next,{courseId})};
