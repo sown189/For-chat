@@ -1,0 +1,2 @@
+# Finessers local operator
+Extract the ZIP, open chrome://extensions in desktop Chrome, enable Developer mode, select Load unpacked, and choose the finessers-chrome directory. Open a public webpage, click the extension icon, Connect tab, preview a control and Execute. The extension uses activeTab and scripting only. Screenshots remain local. It is a manual approval tool with local command matching, not autonomous AI. It does not use Gemini or read cookies or passwords. Do not use it for autonomous graded submissions. Close or stop to end the connection.
