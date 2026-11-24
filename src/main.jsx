@@ -1,4 +1,4 @@
-import FinessersExperience from './FinessersExperience.jsx';
+import BrowserFirst from './BrowserFirst.jsx';
 import CourseCockpit from './CourseCockpit.jsx';
 import ComputerUse from './ComputerUse.jsx';
 import React,{useState,useEffect} from 'react';
@@ -20,4 +20,4 @@ function ScreenPreview({stream}){const ref=React.useRef(null);useEffect(()=>{if(
 function readSaved(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{return fallback}}
 function ServiceCards({go}){return <div className="service-grid">{services.map(({num,title,desc,icon:Icon})=><article className="service-card" key={num}><div className="service-top"><span>{num} / FINESSERS</span><Icon size={28}/></div><h3>{title}</h3><p>{desc}</p><button aria-label={'Explore '+title} onClick={()=>go('workspace')}><ArrowUpRight size={25}/></button></article>)}</div>}
 createRoot(document.getElementById('root')).render(<App/>);
-function App(){return <FinessersExperience/>}
+function App(){return <BrowserFirst/>}
