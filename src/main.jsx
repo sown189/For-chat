@@ -1,4 +1,6 @@
 import BrowserFirst from './BrowserFirst.jsx';
+import {Landing} from './FinessersExperience.jsx';
+import {Globe2} from 'lucide-react';
 import CourseCockpit from './CourseCockpit.jsx';
 import ComputerUse from './ComputerUse.jsx';
 import React,{useState,useEffect} from 'react';
@@ -20,4 +22,5 @@ function ScreenPreview({stream}){const ref=React.useRef(null);useEffect(()=>{if(
 function readSaved(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{return fallback}}
 function ServiceCards({go}){return <div className="service-grid">{services.map(({num,title,desc,icon:Icon})=><article className="service-card" key={num}><div className="service-top"><span>{num} / FINESSERS</span><Icon size={28}/></div><h3>{title}</h3><p>{desc}</p><button aria-label={'Explore '+title} onClick={()=>go('workspace')}><ArrowUpRight size={25}/></button></article>)}</div>}
 createRoot(document.getElementById('root')).render(<App/>);
-function App(){return <BrowserFirst/>}
+function App(){const [view,setView]=useState('landing');const enter=next=>{setView(next==='canvas'?'canvas':'browser');window.scrollTo(0,0)};const home=()=>{setView('landing');window.scrollTo(0,0)};if(view==='landing')return <Landing enter={enter}/>;if(view==='canvas')return <main className="fb fb-canvas"><header><button className="fb-brand" onClick={home}>FINESSERS<span>.</span></button><nav className="fb-nav"><button onClick={()=>enter('browser')}>AI Browser →</button></nav><small>CANVAS / PRIVATE BETA</small></header><section className="fb-intro"><div className="fb-graffiti" aria-hidden="true">F/ ✳</div><p className="fb-kicker">YOUR CAMPUS. YOUR MOVE.</p><h1>Welcome to<br/><em>Canvas.</em></h1><p>Your courses, assignments and study materials. One place to start.</p></section><section className="fb-panel fb-canvas-card"><div className="fb-status"><strong><GraduationCap size={22}/> Canvas Live</strong><span>CONNECTION PENDING</span></div><h2>Ready when you are.</h2><p>Open your school’s Canvas directly, or return to the AI browser. Secure cloud Canvas connection is not available in this beta yet.</p><div className="fb-actions"><a className="fb-link" href="https://canvas.fau.edu/" target="_blank" rel="noopener noreferrer">OPEN FAU CANVAS ↗</a><button className="fb-stop" onClick={()=>enter('browser')}><Globe2 size={16}/> AI BROWSER</button></div><small>No school login or password is collected here.</small></section></main>;return <BrowserFirst onHome={home} onCanvas={()=>enter('canvas')}/>}
+
