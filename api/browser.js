@@ -10,7 +10,12 @@ export default async function handler(req,res){
   let body=req.body;if(typeof body==='string'){try{body=JSON.parse(body)}catch{return res.status(400).json({error:'Invalid request'})}}
   ({action,id,url,mode}=body||{});
   if(!['start','status','cancel'].includes(action))return res.status(400).json({error:'Invalid action'});
-  if(action==='start'&&(!['https://example.com','https://example.com/'].includes(url)||!['assignment_brief','study_material_summary'].includes(mode)))return res.status(400).json({error:'Only example.com and read-only presets are enabled'});
+  if(action==='start'){
+   if(!['assignment_brief','study_material_summary'].includes(mode))return res.status(400).json({error:'Choose one of the two read-only tasks'});
+   let parsed;try{parsed=new URL(String(url).trim())}catch{return res.status(400).json({error:'Test URL must be https://example.com/'})}
+   if(parsed.origin!=='https://example.com'||parsed.username||parsed.password||parsed.pathname!=='/'||parsed.search||parsed.hash)return res.status(400).json({error:'Only the fixed test page https://example.com/ is supported'});
+   url='https://example.com/';
+  }
   if(action!=='start'&&(typeof id!=='string'||!/^[A-Za-z0-9_-]{20,64}$/.test(id)))return res.status(400).json({error:'Invalid job ID'});
  }
  try{
