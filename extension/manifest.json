@@ -1,8 +1,17 @@
 {
- "manifest_version":3,
- "name":"Finessers Companion (Local Beta)",
- "version":"0.1.0",
- "description":"Inspect the current page title and URL on demand; open your Finessers workspace.",
- "permissions":["activeTab"],
- "action":{"default_popup":"popup.html"}
+  "manifest_version": 3,
+  "name": "Finessers — Browser Operator",
+  "version": "0.1.1",
+  "description": "User-approved active-tab navigation and page controls.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_title": "FINESSERS. Connect tab",
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  }
 }
