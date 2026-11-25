@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Finessers — Browser Operator",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "User-approved active-tab navigation and page controls.",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "sidePanel"
   ],
   "action": {
     "default_title": "FINESSERS. Connect tab",
@@ -13,5 +14,9 @@
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
+  },
+  "minimum_chrome_version": "116",
+  "side_panel": {
+    "default_path": "popup.html?panel=1"
   }
 }
