@@ -1,0 +1,1 @@
+document.getElementById('courses').addEventListener('click',()=>{document.getElementById('status').textContent='PASS: Courses clicked.'});document.getElementById('search').addEventListener('input',e=>{document.getElementById('search-status').textContent='PASS: '+e.target.value});
