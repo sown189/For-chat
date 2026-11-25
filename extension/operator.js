@@ -5,15 +5,15 @@ function pageOperator(req){
  function entries(){const out=[];for(const e of document.querySelectorAll('a[href],button,[role="button"],input[type="search"],input[role="searchbox"]')){
  if(!visible(e))continue;const label=norm(e.getAttribute('aria-label')||e.innerText||e.getAttribute('placeholder')||e.title||(e.type==='search'?'Search':''));
  if(!label||risk.test(label))continue;let kind='click',href='';
- if(e.matches('input[type="search"],input[role="searchbox"]')){if(!['search','text'].includes(e.type)||e.readOnly||risk.test([e.name,e.id,e.autocomplete].join(' '))||e.autocomplete==='one-time-code')continue;kind='search';}
- else if(e.tagName==='A'){try{const u=new URL(e.href);if(!['http:','https:'].includes(u.protocol)||u.username||u.password||e.hasAttribute('download')||risk.test(decodeURIComponent(u.pathname+' '+u.search)))continue;href=u.origin+u.pathname}catch{continue}}
+ if(e.matches('input[type="search"],input[role="searchbox"]')){if(!['search','text'].includes(e.type)||e.readOnly||risk.test([e.name,e.id,e.autocomplete,e.getAttribute('aria-label')].join(' '))||/^(?:email|username|tel|cc-|current-password|new-password)/i.test(e.autocomplete||'')||e.autocomplete==='one-time-code')continue;kind='search';}
+ else if(e.tagName==='A'){try{const u=new URL(e.href);if(!['http:','https:'].includes(u.protocol)||u.username||u.password||e.hasAttribute('download')||risk.test(decodeURIComponent(u.pathname+' '+u.search)))continue;href=u.href}catch{continue}}
  else if(e.closest('form')||e.matches('button[type="submit"],button[type="reset"]')||e.form)continue;
  out.push({e,label,kind,href});if(out.length===100)break}return out}
  if(req.action==='scan')return {title:norm(document.title),origin:location.origin,url:location.href,targets:entries().map(({label,kind,href},id)=>({id,label,kind,href}))};
  if(req.url!==location.href)return {error:'Page changed. Rescan.'};
  if(req.action==='scroll'){if(!['up','down'].includes(req.direction))return {error:'Invalid direction'};window.scrollBy({top:(req.direction==='up'?-1:1)*Math.round(innerHeight*.8),behavior:'smooth'});return {message:'Scrolled '+req.direction}}
  const t=entries()[req.target?.id];if(!t||t.label!==req.target.label||t.kind!==req.target.kind||t.href!==req.target.href)return {error:'Control changed. Rescan.'};
- if(req.action==='click'&&t.kind==='click'){t.e.scrollIntoView({block:'center'});t.e.click();return {message:'Clicked '+t.label}}
+ if(req.action==='click'&&t.kind==='click'){t.e.scrollIntoView({block:'center'});if(!visible(t.e)||!t.e.isConnected)return {error:'Control no longer available.'};t.e.click();return {message:'Clicked '+t.label}}
  if(req.action==='search'&&t.kind==='search'&&typeof req.text==='string'&&req.text.length<=250){t.e.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(t.e,req.text);t.e.dispatchEvent(new Event('input',{bubbles:true}));return {message:'Search text entered; submit manually.'}}
  return {error:'Action not permitted.'}
 }
